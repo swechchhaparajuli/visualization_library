@@ -1,20 +1,9 @@
-[project]
-name = "simple_eda"
-version = "0.1.0"
-description = "The simplest exploratory-data-analysis API for pandas DataFrames."
-readme = "README.md"
-license = { file = "LICENSE" }
-requires-python = ">=3.10"
-authors = [{ name = "Swechchha Parajuli" }]
-keywords = ["eda", "pandas", "data-science", "exploratory-data-analysis"]
-dependencies = ["pandas>=1.5"]
-
-[project.urls]
-Homepage = "https://github.com/swechchhaparajuli/visualization_library"
-
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project]
+name = "simple-eda-swechchha"
+version = "0.1.0"
+description = "Tiny EDA helper"
+dependencies = ["pandas>=1.5"]
