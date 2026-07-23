@@ -1,0 +1,5 @@
+site_name: visualization_library
+docs_dir: .
+site_dir: ../site
+nav:
+  - Home: README.md
