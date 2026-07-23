@@ -6,4 +6,5 @@ build-backend = "setuptools.build_meta"
 name = "simple-eda-swechchha"
 version = "0.1.0"
 description = "Tiny EDA helper"
+license = { file = "LICENSE" }
 dependencies = ["pandas>=1.5"]
