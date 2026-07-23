@@ -1,10 +1,16 @@
 [project]
-name = "visualization_library"
+name = "simple_eda"
 version = "0.1.0"
-description = "A data science project."
+description = "The simplest exploratory-data-analysis API for pandas DataFrames."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
-dependencies = []
+authors = [{ name = "Swechchha Parajuli" }]
+keywords = ["eda", "pandas", "data-science", "exploratory-data-analysis"]
+dependencies = ["pandas>=1.5"]
+
+[project.urls]
+Homepage = "https://github.com/swechchhaparajuli/visualization_library"
 
 [build-system]
 requires = ["setuptools>=64"]

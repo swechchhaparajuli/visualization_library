@@ -30,9 +30,6 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# mkdocs build output
-/site/
-
 # Environment variables
 .env
 .env.*
@@ -44,15 +41,3 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
-
-# Data and models are typically not tracked in git
-data/raw/*
-data/interim/*
-data/processed/*
-data/external/*
-!data/raw/.gitkeep
-!data/interim/.gitkeep
-!data/processed/.gitkeep
-!data/external/.gitkeep
-models/*
-!models/.gitkeep

@@ -1,43 +1,56 @@
-# visualization_library
+# simple_eda
 
-A data science project structured with [Cookiecutter Data Science](https://cookiecutter-data-science.drivendata.org/).
+The simplest exploratory-data-analysis API. One import, one call.
 
-## Project Organization
+```python
+import simple_eda as eda
+
+eda.summarize(df)
+```
+
+## Install
+
+```bash
+pip install -e .
+```
+
+## Usage
+
+`summarize()` takes a pandas DataFrame and returns a `Summary` you can print
+for a readable report or convert to a dict for programmatic use.
+
+```python
+import pandas as pd
+import simple_eda as eda
+
+df = pd.DataFrame({"a": [1, 2, 3, None], "b": ["x", "y", "z", "z"]})
+
+summary = eda.summarize(df)
+print(summary)          # human-readable report
+summary.to_dict()       # raw values (shape, dtypes, missing, numeric stats)
+```
+
+The report includes:
+
+- **shape** — row and column counts
+- **dtypes** — the type of each column
+- **missing** — missing-value count per column (and a total)
+- **numeric** — descriptive statistics for numeric columns
+
+## Scope (MVP)
+
+Input is **pandas DataFrames only**. Polars, Spark, Dask, and Arrow are not
+supported yet — fewer choices means fewer bugs.
+
+## Project layout
 
 ```
-├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
-├── docs               <- Project documentation (mkdocs site).
-│
-├── models             <- Trained and serialized models, model predictions, or model summaries.
-│
-├── notebooks          <- Jupyter notebooks for exploration only. Naming convention is a
-│                         number (for ordering), the creator's initials, and a short
-│                         description, e.g. `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for the
-│                         src package and configuration for tools like black.
-│
-├── references         <- Data dictionaries, manuals, and other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures used in reporting.
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment.
-│
-└── src/visualization_library   <- Source code for use in this project.
-    ├── __init__.py             <- Makes src a Python module.
-    ├── config.py               <- Store useful variables and configuration.
-    ├── dataset.py              <- Scripts to download or generate data.
-    ├── features.py             <- Code to create features for modeling.
-    ├── plots.py                <- Code to create visualizations.
-    └── modeling
-        ├── __init__.py
-        ├── predict.py          <- Code to run model inference with trained models.
-        └── train.py            <- Code to train models.
+simple-eda-project/
+├── src/
+│   └── simple_eda/
+│       ├── __init__.py
+│       └── core.py
+├── README.md
+├── pyproject.toml
+└── LICENSE
 ```
