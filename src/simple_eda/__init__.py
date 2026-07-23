@@ -4,7 +4,12 @@
     eda.summarize(df)
 """
 
-from simple_eda.core import Summary, summarize
+from simple_eda.core import (
+    categorical_columns,
+    missing,
+    numeric_columns,
+    summarize,
+)
 
-__all__ = ["Summary", "summarize"]
+__all__ = ["summarize", "missing", "numeric_columns", "categorical_columns"]
 __version__ = "0.1.0"

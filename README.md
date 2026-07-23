@@ -16,26 +16,24 @@ pip install -e .
 
 ## Usage
 
-`summarize()` takes a pandas DataFrame and returns a `Summary` you can print
-for a readable report or convert to a dict for programmatic use.
-
 ```python
 import pandas as pd
 import simple_eda as eda
 
-df = pd.DataFrame({"a": [1, 2, 3, None], "b": ["x", "y", "z", "z"]})
-
-summary = eda.summarize(df)
-print(summary)          # human-readable report
-summary.to_dict()       # raw values (shape, dtypes, missing, numeric stats)
+df = pd.DataFrame({
+    "name": ["Ana", "Bo", None],
+    "age": [25, None, 31],
+})
+print(eda.summarize(df))
+print(eda.missing(df))
 ```
 
-The report includes:
+## Core functions
 
-- **shape** — row and column counts
-- **dtypes** — the type of each column
-- **missing** — missing-value count per column (and a total)
-- **numeric** — descriptive statistics for numeric columns
+- **`summarize(df)`** — shape, columns, and dtypes (as a dict)
+- **`missing(df)`** — null count per column, most-missing first (a Series)
+- **`numeric_columns(df)`** — names of the numeric columns (a list)
+- **`categorical_columns(df)`** — names of the object/category columns (a list)
 
 ## Scope (MVP)
 
