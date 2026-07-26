@@ -17,51 +17,26 @@ from __future__ import annotations
 
 import json
 import zlib
-from pathlib import Path as _FsPath
 
 import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
-from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 from matplotlib.patches import PathPatch, Patch, Rectangle, Wedge
 from matplotlib.path import Path
 
 from forest_viz import data as _data
+from forest_viz import motifs as _motifs
 from forest_viz import palette
 
 # Each driver's primary sector is drawn as a little diorama composed from a
-# SET of related 3-D icons (Microsoft Fluent Emoji, MIT-licensed), not one
-# repeated icon. Each entry is (icon-name, relative-size).
-_ICON_DIR = _FsPath(__file__).with_name("assets") / "icons"
-DRIVER_SCENE = {
-    "Permanent agriculture": [("tractor", 1.2), ("sheaf", 0.8), ("corn", 0.85), ("seedling", 0.7)],
-    "Shifting cultivation": [("seedling", 0.85), ("herb", 0.95), ("fire", 0.8), ("sheaf", 0.8)],
-    "Wildfire": [("wildfire", 1.15), ("tree", 0.95), ("fire", 0.8), ("deciduous", 0.95)],
-    "Logging": [("axe", 1.05), ("wood", 0.95), ("tree", 1.0), ("saw", 0.9)],
-    "Other natural disturbances": [("tornado", 1.05), ("rock", 0.85)],
-    "Hard commodities": [("pick", 1.05), ("gem", 0.8), ("rock", 0.9)],
-    "Settlements & Infrastructure": [("construction", 1.1), ("office", 1.0), ("house", 0.9)],
-}
-_ICON_CACHE: dict = {}
-
-
-def _icon(name: str):
-    """Return the RGBA image array for an icon name, or None if missing."""
-    if name not in _ICON_CACHE:
-        p = _ICON_DIR / f"{name}.png"
-        _ICON_CACHE[name] = plt.imread(str(p)) if p.exists() else None
-    return _ICON_CACHE[name]
+# SET of flat vector motifs (see forest_viz.motifs), not one repeated icon.
+DRIVER_SCENE = _motifs.SCENES
 
 
 def _scene(driver: str):
-    """Return the loaded diorama icon set for a driver, or None."""
-    spec = DRIVER_SCENE.get(driver)
-    if not spec:
-        return None
-    loaded = [(w, _icon(name)) for name, w in spec]
-    loaded = [(w, img) for w, img in loaded if img is not None]
-    return loaded or None
+    """Return the diorama motif spec for a driver, or None."""
+    return DRIVER_SCENE.get(driver) or None
 
 # GeoJSON "ADMIN" names that differ from the data's country names.
 _DATA_TO_NE = {
@@ -221,22 +196,23 @@ def _primary_set(fracs: dict, tol: float = 0.05) -> set:
     return {d for d, f in fracs.items() if f > 0 and smax - f <= tol}
 
 
-def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, zoom, seed):
+def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size, seed):
     """Compose a little diorama across a pie sector (clipped to the country).
 
-    Instead of one repeated icon, points in the sector are populated with a
-    mix of the driver's ``scene`` icons at varied sizes and jittered
-    positions, drawn back-to-front for depth. Icon count scales with area.
-    ``seed`` makes the layout deterministic per country.
+    Points in the sector are populated with a mix of the driver's flat vector
+    ``scene`` motifs at varied sizes and jittered positions, drawn
+    back-to-front for depth. Motif count scales with area. ``seed`` makes the
+    layout deterministic per country; ``size`` is the base motif height in
+    data units.
     """
     rng = np.random.RandomState(seed)
     spacing = min(6.5, max(2.6, radius * 0.20))
     span = frac * 360.0
 
     def _emit(x, y):
-        w, img = scene[rng.randint(len(scene))]
-        z = zoom * w * (0.82 + rng.rand() * 0.4)
-        return (y, x, z, img)
+        key, w = scene[rng.randint(len(scene))]
+        s = size * w * (0.82 + rng.rand() * 0.4)
+        return (y, x, s, key)
 
     placed = []
     xs = np.arange(cx - radius, cx + radius + 1e-9, spacing)
@@ -263,10 +239,8 @@ def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, zoom,
                 break
 
     # Back-to-front: higher latitude first, lower (nearer) drawn last / on top.
-    for y, x, z, img in sorted(placed, key=lambda t: -t[0]):
-        ax.add_artist(AnnotationBbox(
-            OffsetImage(img, zoom=z), (x, y), xycoords=transform,
-            frameon=False, pad=0, zorder=5.5))
+    for i, (y, x, s, key) in enumerate(sorted(placed, key=lambda t: -t[0])):
+        _motifs.MOTIF[key](ax, x, y, s, transform, 5.4 + i * 0.003)
 
 
 def _compound(rings: list) -> Path:
@@ -375,8 +349,8 @@ def plot_top_countries_map(
                                 edgecolor="none", zorder=3 + t))
 
         # Top face: pie wedges clipped to the country outline. The primary
-        # driver's sector is filled with tiled 3-D icons instead of flat color.
-        icon_zoom = min(0.085, max(0.045, max(3.0, radius * 0.22) * 0.012)) * icon_scale
+        # driver's sector is filled with a flat-motif diorama, not a flat color.
+        icon_size = min(6.5, max(2.6, radius * 0.20)) * icon_scale
         start = 90.0
         for drv in order:
             frac = fracs[drv]
@@ -393,7 +367,7 @@ def plot_top_countries_map(
             wedge.set_clip_path(clip, top_t)
             if scene:
                 seed = zlib.crc32(f"{country}:{drv}".encode()) & 0xFFFFFFFF
-                _diorama(ax, scene, cx, cy, radius, start, frac, rings, top_t, icon_zoom, seed)
+                _diorama(ax, scene, cx, cy, radius, start, frac, rings, top_t, icon_size, seed)
             # Percentage label inside the country, along the wedge mid-angle.
             if frac >= label_min_share:
                 mid = np.radians((start + end) / 2.0)

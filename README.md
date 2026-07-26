@@ -117,12 +117,14 @@ is styled like the reference infographic instead: its sector takes a themed
 **biome color** — crop gold (permanent agriculture), ember orange
 (wildfire), forest teal (logging), olive (shifting cultivation), brick
 (settlements), etc. — and is filled with a little **diorama** composed from
-a *set* of related 3-D icons at varied sizes and jittered positions, drawn
-back-to-front for depth (e.g. wildfire = burning trees + plain trees +
-flames; logging = axes + logs + saws + trees; agriculture = tractors + corn
-+ sheaves + seedlings). The element count scales with the share, and the
-layout is deterministic per country. The 3-D slab's side wall and the legend
-follow the theme color.
+a *set* of flat vector motifs (`forest_viz.motifs`) at varied sizes and
+jittered positions, drawn back-to-front for depth (e.g. wildfire = conifers
++ round trees + flames; logging = trees + logs + stumps; agriculture = crop
+rows + a barn; shifting cultivation = seedlings + sprouts + flames). The
+motifs are simple silhouettes in a cohesive muted palette (no external
+images). The element count scales with the share, and the layout is
+deterministic per country. The 3-D slab's side wall follows the theme
+color; the legend keys each driver's pastel-green shade.
 If two drivers are within ~5 points of each other (an effective tie), both
 are treated as primary. Icons are Microsoft Fluent Emoji (MIT-licensed),
 bundled under `src/forest_viz/assets/icons/`.

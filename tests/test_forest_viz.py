@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from forest_viz import data, maps, palette, plots, theme
+from forest_viz import data, maps, motifs, palette, plots, theme
 
 
 @pytest.fixture
@@ -106,13 +106,14 @@ def test_primary_set_single_and_tie():
     assert maps._primary_set({"a": 0.0, "b": 0.0}) == set()
 
 
-def test_every_driver_has_a_loadable_diorama_scene():
+def test_every_driver_has_a_diorama_scene():
     for driver in palette.DRIVER_ORDER:
         assert driver in maps.DRIVER_SCENE
         scene = maps._scene(driver)
-        assert scene, f"{driver} has no loadable icons"
-        assert len(scene) >= 2, f"{driver} diorama needs a variety of icons"
-        assert all(img.ndim == 3 for _w, img in scene)  # HxWxRGBA
+        assert scene, f"{driver} has no diorama"
+        assert len(scene) >= 2, f"{driver} diorama needs a variety of motifs"
+        # every motif key resolves to a known drawing function
+        assert all(key in motifs.MOTIF for key, _w in scene)
 
 
 def test_drop_small_islands_keeps_major_rings():
