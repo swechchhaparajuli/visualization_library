@@ -121,3 +121,25 @@ def driver_totals(
         lo, hi = year_range
         df = df[(df["year"] >= lo) & (df["year"] <= hi)]
     return df.groupby("driver")["tc_loss_ha"].sum().sort_values(ascending=False)
+
+
+def top_countries_drivers(
+    drivers: pd.DataFrame,
+    n: int = 15,
+    year_range: tuple[int, int] | None = None,
+) -> pd.DataFrame:
+    """Driver breakdown for the ``n`` countries with the most loss.
+
+    Returns a country x driver matrix (hectares), rows ordered by total
+    loss descending. Divide each row by its sum for the per-driver share.
+    """
+    df = drivers
+    if year_range is not None:
+        lo, hi = year_range
+        df = df[(df["year"] >= lo) & (df["year"] <= hi)]
+    wide = df.pivot_table(
+        index="country", columns="driver", values="tc_loss_ha", aggfunc="sum", fill_value=0.0
+    )
+    wide.columns.name = None
+    order = wide.sum(axis=1).sort_values(ascending=False).index[:n]
+    return wide.loc[order]

@@ -26,6 +26,7 @@ def main(workbook: str) -> None:
 
     tcl = data.load_tree_cover_loss(workbook)
     drivers = data.load_drivers(workbook, primary=True)
+    all_drivers = data.load_drivers(workbook, primary=False)  # for the total-loss breakdown
 
     # Vendor compact tidy CSVs so the charts are reproducible without the 18MB xlsx.
     data.loss_by_year(tcl).to_csv(DATA_DIR / "global_loss_by_year.csv", index=False)
@@ -33,11 +34,17 @@ def main(workbook: str) -> None:
     drivers.groupby(["driver", "year"], as_index=False)["tc_loss_ha"].sum().to_csv(
         DATA_DIR / "global_primary_drivers_by_year.csv", index=False
     )
+    data.top_countries_drivers(all_drivers, n=15, year_range=(2001, 2024)).to_csv(
+        DATA_DIR / "top15_countries_by_driver.csv"
+    )
 
     theme.apply_theme()
     figs = {
         "tree_cover_loss_trend.png": plots.plot_loss_trend(tcl),
         "top_countries_loss.png": plots.plot_top_countries(tcl, n=15, year_range=(2001, 2024)),
+        "top_countries_by_driver.png": plots.plot_top_countries_drivers(
+            all_drivers, n=15, year_range=(2001, 2024)
+        ),
         "primary_drivers_over_time.png": plots.plot_drivers_over_time(drivers),
         "primary_driver_composition.png": plots.plot_driver_composition(drivers, year_range=(2002, 2024)),
     }

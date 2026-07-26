@@ -63,11 +63,14 @@ from forest_viz import data, plots, theme
 tcl = data.load_tree_cover_loss("data/raw/global.xlsx")          # country, year, tc_loss_ha
 drivers = data.load_drivers("data/raw/global.xlsx", primary=True) # country, driver, year, tc_loss_ha
 
-theme.apply_theme()                       # recessive grid, sans type; theme.apply_theme(dark=True) for dark
-plots.plot_loss_trend(tcl)                # annual loss, global (or country="Brazil")
-plots.plot_top_countries(tcl, n=15)       # ranked bar
-plots.plot_drivers_over_time(drivers)     # stacked area by driver
-plots.plot_driver_composition(drivers)    # ranked bar, share per driver
+all_drivers = data.load_drivers("data/raw/global.xlsx", primary=False)  # all TC loss
+
+theme.apply_theme()                              # recessive grid, sans type; dark=True for dark
+plots.plot_loss_trend(tcl)                       # annual loss, global (or country="Brazil")
+plots.plot_top_countries(tcl, n=15)              # ranked bar
+plots.plot_top_countries_drivers(all_drivers)    # ranked bar split into driver % shares
+plots.plot_drivers_over_time(drivers)            # stacked area by driver
+plots.plot_driver_composition(drivers)           # ranked bar, share per driver
 ```
 
 Every plot function takes a tidy frame, draws on a matplotlib `Axes`
@@ -86,10 +89,12 @@ python examples/generate_figures.py data/raw/global.xlsx
 |---|---|---|
 | `plot_loss_trend` | How has annual tree-cover loss changed? | area + line, peak labeled |
 | `plot_top_countries` | Which countries lost the most? | ranked horizontal bar |
+| `plot_top_countries_drivers` | For the top countries, what % of loss is which driver? | ranked bar, stacked by driver with % labels |
 | `plot_drivers_over_time` | How does the driver mix shift year to year? | stacked area |
 | `plot_driver_composition` | Which drivers dominate overall? | ranked bar, % share |
 
 ![Tree cover loss trend](reports/figures/tree_cover_loss_trend.png)
+![Top countries by loss, split by driver](reports/figures/top_countries_by_driver.png)
 ![Primary drivers over time](reports/figures/primary_drivers_over_time.png)
 ![Primary driver composition](reports/figures/primary_driver_composition.png)
 ![Top countries by loss](reports/figures/top_countries_loss.png)

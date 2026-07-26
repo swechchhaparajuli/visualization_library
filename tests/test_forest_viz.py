@@ -65,6 +65,27 @@ def test_driver_totals_sorted(drivers):
     assert totals.iloc[0] == 200.0
 
 
+def test_top_countries_drivers_ranks_and_pivots():
+    df = pd.DataFrame(
+        [
+            {"country": "A", "driver": "Wildfire", "year": 2002, "tc_loss_ha": 100.0},
+            {"country": "A", "driver": "Logging", "year": 2002, "tc_loss_ha": 100.0},
+            {"country": "B", "driver": "Wildfire", "year": 2002, "tc_loss_ha": 10.0},
+        ]
+    )
+    wide = data.top_countries_drivers(df, n=2)
+    assert list(wide.index) == ["A", "B"]  # A (200) ranks above B (10)
+    assert wide.loc["A", "Logging"] == 100.0
+    # per-driver share is row-normalized
+    shares = wide.loc["A"] / wide.loc["A"].sum()
+    assert shares["Wildfire"] == 0.5
+
+
+def test_readable_text_contrast():
+    assert plots._readable_text("#ffffff") == "#0b0b0b"  # black on light
+    assert plots._readable_text("#2a78d6") == "#ffffff"  # white on mid-blue
+
+
 def test_palette_covers_all_drivers():
     assert len(palette.DRIVER_ORDER) == 7
     assert set(palette.driver_colors()) == set(palette.DRIVER_ORDER)
@@ -80,6 +101,8 @@ def test_plot_functions_return_axes(tcl, drivers, dark):
     ax = plots.plot_driver_composition(drivers, dark=dark)
     # legend/labels present so identity is never color-alone
     assert ax.get_xlabel() != ""
+    ax2 = plots.plot_top_countries_drivers(drivers, n=1, dark=dark)
+    assert ax2.get_legend() is not None  # driver legend present
 
 
 def test_fmt_ha_is_compact():

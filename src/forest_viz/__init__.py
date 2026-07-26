@@ -16,6 +16,7 @@ from forest_viz.plots import (
     plot_drivers_over_time,
     plot_loss_trend,
     plot_top_countries,
+    plot_top_countries_drivers,
 )
 from forest_viz.theme import apply_theme
 
@@ -27,6 +28,7 @@ __all__ = [
     "apply_theme",
     "plot_loss_trend",
     "plot_top_countries",
+    "plot_top_countries_drivers",
     "plot_drivers_over_time",
     "plot_driver_composition",
 ]
