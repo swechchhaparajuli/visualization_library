@@ -90,14 +90,32 @@ python examples/generate_figures.py data/raw/global.xlsx
 | `plot_loss_trend` | How has annual tree-cover loss changed? | area + line, peak labeled |
 | `plot_top_countries` | Which countries lost the most? | ranked horizontal bar |
 | `plot_top_countries_drivers` | For the top countries, what % of loss is which driver? | ranked bar, stacked by driver with % labels |
+| `plot_top_countries_map` | Where are the top countries, and their driver mix? | pop-out world map with per-country driver donuts |
 | `plot_drivers_over_time` | How does the driver mix shift year to year? | stacked area |
 | `plot_driver_composition` | Which drivers dominate overall? | ranked bar, % share |
 
+![Top countries pop-out map](reports/figures/top_countries_map.png)
 ![Tree cover loss trend](reports/figures/tree_cover_loss_trend.png)
 ![Top countries by loss, split by driver](reports/figures/top_countries_by_driver.png)
 ![Primary drivers over time](reports/figures/primary_drivers_over_time.png)
 ![Primary driver composition](reports/figures/primary_driver_composition.png)
 ![Top countries by loss](reports/figures/top_countries_loss.png)
+
+### Pop-out map
+
+`plot_top_countries_map` lifts the top-N countries off a muted base map with
+a drop shadow (as if pulled out) and places a driver donut on each — same
+driver colors as the bar charts. Overlapping donuts (e.g. across South
+America) are pushed apart automatically and connected back to their country
+with a thin leader line. Geometry is a bundled Natural Earth 110m GeoJSON;
+no geopandas required.
+
+```python
+from forest_viz import data, maps, theme
+all_drivers = data.load_drivers("data/raw/global.xlsx", primary=False)
+theme.apply_theme()
+maps.plot_top_countries_map(all_drivers, "data/geo/ne_110m_admin_0_countries.geojson", n=15)
+```
 
 ## Design
 
@@ -129,9 +147,11 @@ visualization_library/
 │       ├── data.py          # load + tidy the workbook
 │       ├── palette.py       # validated driver colors
 │       ├── theme.py         # matplotlib theme
-│       └── plots.py         # the four chart functions
+│       ├── plots.py         # bar/area/line chart functions
+│       └── maps.py          # pop-out world map
 ├── examples/generate_figures.py
 ├── data/processed/          # small tidy CSVs (committed)
+├── data/geo/                # Natural Earth countries GeoJSON (committed)
 ├── reports/figures/         # example PNGs
 ├── tests/
 ├── README.md

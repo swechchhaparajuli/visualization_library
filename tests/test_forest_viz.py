@@ -8,10 +8,11 @@ import matplotlib
 
 matplotlib.use("Agg")  # headless
 
+import numpy as np
 import pandas as pd
 import pytest
 
-from forest_viz import data, palette, plots, theme
+from forest_viz import data, maps, palette, plots, theme
 
 
 @pytest.fixture
@@ -84,6 +85,35 @@ def test_top_countries_drivers_ranks_and_pivots():
 def test_readable_text_contrast():
     assert plots._readable_text("#ffffff") == "#0b0b0b"  # black on light
     assert plots._readable_text("#2a78d6") == "#ffffff"  # white on mid-blue
+
+
+def test_declutter_separates_points():
+    xy = np.array([[0.0, 0.0], [0.5, 0.0], [0.0, 0.5]])
+    out = maps._declutter(xy, min_dist=5.0, bounds=(-100, 100, -100, 100), iters=500)
+    dists = [
+        np.hypot(*(out[i] - out[j]))
+        for i in range(len(out))
+        for j in range(i + 1, len(out))
+    ]
+    assert min(dists) >= 5.0 - 1e-6
+
+
+def test_map_plots_with_synthetic_geometry():
+    # Two triangle "countries"; name mapping exercises the override too.
+    geometry = {
+        "United States of America": [np.array([[-100, 30], [-90, 30], [-95, 40], [-100, 30]])],
+        "Brazil": [np.array([[-55, -10], [-45, -10], [-50, 0], [-55, -10]])],
+    }
+    drivers = pd.DataFrame(
+        [
+            {"country": "United States", "driver": "Wildfire", "year": 2001, "tc_loss_ha": 80.0},
+            {"country": "United States", "driver": "Logging", "year": 2001, "tc_loss_ha": 20.0},
+            {"country": "Brazil", "driver": "Permanent agriculture", "year": 2001, "tc_loss_ha": 90.0},
+        ]
+    )
+    theme.apply_theme()
+    ax = maps.plot_top_countries_map(drivers, geometry, n=2)
+    assert ax.get_legend() is not None
 
 
 def test_palette_covers_all_drivers():
