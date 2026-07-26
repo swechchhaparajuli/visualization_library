@@ -87,15 +87,12 @@ def test_readable_text_contrast():
     assert plots._readable_text("#2a78d6") == "#ffffff"  # white on mid-blue
 
 
-def test_declutter_separates_points():
-    xy = np.array([[0.0, 0.0], [0.5, 0.0], [0.0, 0.5]])
-    out = maps._declutter(xy, min_dist=5.0, bounds=(-100, 100, -100, 100), iters=500)
-    dists = [
-        np.hypot(*(out[i] - out[j]))
-        for i in range(len(out))
-        for j in range(i + 1, len(out))
-    ]
-    assert min(dists) >= 5.0 - 1e-6
+def test_shrink_insets_ring_toward_centroid():
+    ring = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]])
+    out = maps._shrink(ring, gap=0.1)
+    # inset ring is strictly inside the original bounding box
+    assert out[:, 0].min() > 0.0 and out[:, 0].max() < 10.0
+    assert out[:, 1].min() > 0.0 and out[:, 1].max() < 10.0
 
 
 def test_map_plots_with_synthetic_geometry():

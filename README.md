@@ -90,7 +90,7 @@ python examples/generate_figures.py data/raw/global.xlsx
 | `plot_loss_trend` | How has annual tree-cover loss changed? | area + line, peak labeled |
 | `plot_top_countries` | Which countries lost the most? | ranked horizontal bar |
 | `plot_top_countries_drivers` | For the top countries, what % of loss is which driver? | ranked bar, stacked by driver with % labels |
-| `plot_top_countries_map` | Where are the top countries, and their driver mix? | pop-out world map with per-country driver donuts |
+| `plot_top_countries_map` | Where are the top countries, and their driver mix? | pop-out world map, each country filled by driver share |
 | `plot_drivers_over_time` | How does the driver mix shift year to year? | stacked area |
 | `plot_driver_composition` | Which drivers dominate overall? | ranked bar, % share |
 
@@ -104,11 +104,12 @@ python examples/generate_figures.py data/raw/global.xlsx
 ### Pop-out map
 
 `plot_top_countries_map` lifts the top-N countries off a muted base map with
-a drop shadow (as if pulled out) and places a driver donut on each — same
-driver colors as the bar charts. Overlapping donuts (e.g. across South
-America) are pushed apart automatically and connected back to their country
-with a thin leader line. Geometry is a bundled Natural Earth 110m GeoJSON;
-no geopandas required.
+a drop shadow (as if pulled out) and fills each country's own shape with its
+driver breakdown: stacked horizontal bands, colored by driver (same colors
+as the bar charts), band heights proportional to each driver's share of that
+country's loss. Bordering countries are inset slightly so a background gap
+separates them. Geometry is a bundled Natural Earth 110m GeoJSON; no
+geopandas required.
 
 ```python
 from forest_viz import data, maps, theme
