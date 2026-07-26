@@ -16,16 +16,43 @@ y = latitude), which is enough for a highlight map.
 from __future__ import annotations
 
 import json
+from pathlib import Path as _FsPath
 
 import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 from matplotlib.patches import PathPatch, Patch, Rectangle, Wedge
 from matplotlib.path import Path
 
 from forest_viz import data as _data
 from forest_viz import palette
+
+# Small 3-D icon per driver (Microsoft Fluent Emoji, MIT-licensed), used to
+# fill a country's primary-driver sector instead of a flat color.
+_ICON_DIR = _FsPath(__file__).with_name("assets") / "icons"
+DRIVER_ICON = {
+    "Permanent agriculture": "tractor",
+    "Shifting cultivation": "seedling",
+    "Wildfire": "wildfire",
+    "Logging": "axe",
+    "Other natural disturbances": "tornado",
+    "Hard commodities": "pick",
+    "Settlements & Infrastructure": "construction",
+}
+_ICON_CACHE: dict = {}
+
+
+def _icon(driver: str):
+    """Return the RGBA image array for a driver's icon, or None if missing."""
+    name = DRIVER_ICON.get(driver)
+    if name is None:
+        return None
+    if name not in _ICON_CACHE:
+        p = _ICON_DIR / f"{name}.png"
+        _ICON_CACHE[name] = plt.imread(str(p)) if p.exists() else None
+    return _ICON_CACHE[name]
 
 # GeoJSON "ADMIN" names that differ from the data's country names.
 _DATA_TO_NE = {
@@ -171,6 +198,57 @@ def _lerp(c0: tuple, c1: tuple, t: float) -> tuple:
     return tuple(a + (b - a) * t for a, b in zip(c0, c1))
 
 
+def _pale(hex_color: str, t: float = 0.6) -> tuple:
+    """Lighten a color toward white (for the backdrop under tiled icons)."""
+    return _lerp(_rgb(hex_color), (1.0, 1.0, 1.0), t)
+
+
+def _primary_set(fracs: dict, tol: float = 0.05) -> set:
+    """Drivers that are the primary one -- the top share plus any driver
+    within ``tol`` (share points) of it (an effective tie)."""
+    if not fracs:
+        return set()
+    smax = max(fracs.values())
+    return {d for d, f in fracs.items() if f > 0 and smax - f <= tol}
+
+
+def _tile_icons(ax, img, cx, cy, radius, start_deg, frac, rings, transform, zoom):
+    """Fill a pie sector (clipped to the country) with a grid of icon images.
+
+    ``start_deg`` is the wedge's leading angle; the sector spans ``frac*360``
+    degrees clockwise from it. The number of icons scales with the sector's
+    area, so a bigger share is covered by more icons.
+    """
+    spacing = min(7.0, max(3.0, radius * 0.22))
+    xs = np.arange(cx - radius, cx + radius + 1e-9, spacing)
+    ys = np.arange(cy - radius, cy + radius + 1e-9, spacing)
+    span = frac * 360.0
+    placed = 0
+    for x in xs:
+        for y in ys:
+            dx, dy = x - cx, y - cy
+            if np.hypot(dx, dy) > radius * 0.97:
+                continue
+            ang = np.degrees(np.arctan2(dy, dx))
+            if (start_deg - ang) % 360 > span:  # outside this driver's sector
+                continue
+            if not _inside(rings, (x, y)):
+                continue
+            ax.add_artist(AnnotationBbox(
+                OffsetImage(img, zoom=zoom), (x, y), xycoords=transform,
+                frameon=False, pad=0, zorder=5.5))
+            placed += 1
+    if placed == 0:  # tiny sector: guarantee at least one icon
+        mid = np.radians(start_deg - span / 2.0)
+        for rr in (0.5, 0.35, 0.65):
+            x, y = cx + radius * rr * np.cos(mid), cy + radius * rr * np.sin(mid)
+            if _inside(rings, (x, y)):
+                ax.add_artist(AnnotationBbox(
+                    OffsetImage(img, zoom=zoom), (x, y), xycoords=transform,
+                    frameon=False, pad=0, zorder=5.5))
+                break
+
+
 def _compound(rings: list) -> Path:
     return Path.make_compound_path(*[Path(r) for r in rings])
 
@@ -191,6 +269,7 @@ def plot_top_countries_map(
     label_min_share: float = 0.12,
     depth: float = 15.0,
     island_min_frac: float = 0.01,
+    icon_scale: float = 1.0,
 ):
     """Pop-out map of the top ``n`` loss countries, each sliced by driver.
 
@@ -258,7 +337,10 @@ def plot_top_countries_map(
 
         shares = wide.loc[country, order]
         total = float(shares.sum()) or 1.0
-        dominant = max(order, key=lambda d: float(shares[d]))
+        fracs = {d: float(shares[d]) / total for d in order}
+        dominant = max(order, key=lambda d: fracs[d])
+        # Primary driver(s): the top share, plus any within ~5 points of it.
+        primary = _primary_set(fracs, tol=0.05)
 
         # Contact shadow on the map, then the extruded side wall (dark base ->
         # lighter near the top), giving each country a solid 3-D thickness.
@@ -271,17 +353,23 @@ def plot_top_countries_map(
             ax.add_patch(_patch(clip, _off(0, depth * t), facecolor=_lerp(wall_lo, wall_hi, t),
                                 edgecolor="none", zorder=3 + t))
 
-        # Top face: pie wedges clipped to the country outline.
+        # Top face: pie wedges clipped to the country outline. The primary
+        # driver's sector is filled with tiled 3-D icons instead of flat color.
+        icon_zoom = min(0.085, max(0.045, max(3.0, radius * 0.22) * 0.012)) * icon_scale
         start = 90.0
         for drv in order:
-            frac = float(shares[drv]) / total
+            frac = fracs[drv]
             if frac <= 0:
                 continue
             end = start - frac * 360.0
-            wedge = Wedge((cx, cy), radius, end, start, facecolor=colors[drv],
+            img = _icon(drv) if drv in primary else None
+            face = _pale(colors[drv]) if img is not None else colors[drv]
+            wedge = Wedge((cx, cy), radius, end, start, facecolor=face,
                           edgecolor=chrome["surface"], linewidth=0.6, transform=top_t, zorder=4.5)
             ax.add_patch(wedge)
             wedge.set_clip_path(clip, top_t)
+            if img is not None:
+                _tile_icons(ax, img, cx, cy, radius, start, frac, rings, top_t, icon_zoom)
             # Percentage label inside the country, along the wedge mid-angle.
             if frac >= label_min_share:
                 mid = np.radians((start + end) / 2.0)

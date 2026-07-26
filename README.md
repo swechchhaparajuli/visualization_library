@@ -105,15 +105,23 @@ python examples/generate_figures.py data/raw/global.xlsx
 
 `plot_top_countries_map` enlarges the top-N countries and lifts them off a
 muted base map with a drop shadow (as if pulled out). Each country's own
-shape is sliced into pie wedges, colored by driver (same colors as the bar
-charts), with wedge angles proportional to each driver's share of that
-country's loss and the percentages labeled inside the shape. Bordering
-countries are pushed apart so a clear gap separates them. Each country is
-extruded into a 3-D slab — a shaded side wall (a darkened tint of its
-dominant driver) rising to the pie-colored top face — so they read as
-solid, clearly distinguishable blocks (`enlarge`, `gap`, and `depth` are
-tunable). Outlying territories are dropped (e.g. Alaska). Geometry is a
-bundled Natural Earth 110m GeoJSON; no geopandas required.
+shape is sliced into pie wedges sized by each driver's share of that
+country's loss, extruded into a 3-D slab (shaded side wall + top face) so
+they read as solid, clearly distinguishable blocks. Bordering countries are
+pushed apart so a clear gap separates them, and tiny outlying islands are
+dropped (e.g. Alaska) for clean silhouettes.
+
+Drivers are colored in consistent **pastel-green shades** (each driver keeps
+its shade everywhere). The exception is each country's **primary driver**:
+its sector is filled with tiled **3-D icons** representing that driver —
+burning trees (wildfire), axes (logging), tractors (permanent agriculture),
+seedlings (shifting cultivation), etc. — with the icon count scaling to the
+share. If two drivers are within ~5 points of each other (an effective tie),
+both are iconized. Icons are Microsoft Fluent Emoji (MIT-licensed), bundled
+under `src/forest_viz/assets/icons/`.
+
+`enlarge`, `gap`, `depth`, `island_min_frac`, and `icon_scale` are tunable.
+Geometry is a bundled Natural Earth 110m GeoJSON; no geopandas required.
 
 ```python
 from forest_viz import data, maps, theme

@@ -23,9 +23,10 @@ DRIVER_ORDER = [
     "Settlements & Infrastructure",
 ]
 
-# Categorical slots 1-7, fixed order, validated palette.
-_SLOTS_LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7"]
-_SLOTS_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9"]
+# Each driver is assigned a fixed shade of pastel green (light -> dark),
+# consistent across every country. Order matches DRIVER_ORDER.
+_SLOTS_LIGHT = ["#e3f3d8", "#c9e8bd", "#addca3", "#8fd08b", "#6fc276", "#4fb265", "#2f9f57"]
+_SLOTS_DARK = ["#b7d9a6", "#9ccb8a", "#7fbd75", "#61ad63", "#469a55", "#2f8547", "#1f6f39"]
 
 DRIVER_COLORS = dict(zip(DRIVER_ORDER, _SLOTS_LIGHT))
 DRIVER_COLORS_DARK = dict(zip(DRIVER_ORDER, _SLOTS_DARK))

@@ -95,6 +95,24 @@ def test_enlarge_grows_ring_about_centroid():
     assert np.allclose(out[:-1].mean(axis=0), ring[:-1].mean(axis=0))
 
 
+def test_primary_set_single_and_tie():
+    # clear single primary
+    assert maps._primary_set({"a": 0.70, "b": 0.20, "c": 0.10}) == {"a"}
+    # two effectively tied (within 5 points) -> both primary
+    assert maps._primary_set({"a": 0.40, "b": 0.37, "c": 0.23}) == {"a", "b"}
+    # 6-point gap is not a tie
+    assert maps._primary_set({"a": 0.40, "b": 0.34}) == {"a"}
+    # zero-share drivers never count
+    assert maps._primary_set({"a": 0.0, "b": 0.0}) == set()
+
+
+def test_every_driver_has_a_loadable_icon():
+    for driver in palette.DRIVER_ORDER:
+        assert driver in maps.DRIVER_ICON
+        img = maps._icon(driver)
+        assert img is not None and img.ndim == 3  # HxWxRGBA
+
+
 def test_drop_small_islands_keeps_major_rings():
     big = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]])
     mid = np.array([[20.0, 0.0], [26.0, 0.0], [26.0, 6.0], [20.0, 6.0], [20.0, 0.0]])
