@@ -93,38 +93,50 @@ def _enlarge(rings: list, factor: float, cap_deg: float) -> list:
     return out
 
 
-def _bbox(rings: list) -> np.ndarray:
-    pts = np.vstack(rings)
-    return np.array([pts[:, 0].min(), pts[:, 1].min(), pts[:, 0].max(), pts[:, 1].max()])
+def _separate(list_of_rings, gap, iters=300, max_disp=18.0, step=0.7):
+    """Nudge countries apart until bordering outlines are ``gap`` degrees apart.
 
-
-def _separate(centers, halfs, gap, iters=1200, max_disp=26.0):
-    """Push overlapping axis-aligned boxes apart, leaving ``gap`` between them.
-
-    Returns the per-box displacement (new_center - original_center), capped
-    at ``max_disp`` so nothing flies across the map.
+    Unlike a bounding-box scheme, this measures actual outline proximity (and
+    containment), so only countries whose shapes touch or overlap move, and
+    only by the minimum needed -- distant countries stay put. Returns a
+    per-country (dx, dy) displacement.
     """
-    c = centers.astype(float).copy()
+    n = len(list_of_rings)
+    cents = np.array([_representative_point(r) for r in list_of_rings], dtype=float)
+    pts, paths = [], []
+    for rings in list_of_rings:
+        p = np.vstack(rings)
+        k = max(1, len(p) // 90)
+        pts.append(p[::k])
+        paths.append(_compound(rings))
+
+    disp = np.zeros((n, 2))
     for _ in range(iters):
         moved = False
-        for i in range(len(c)):
-            for j in range(i + 1, len(c)):
-                d = c[j] - c[i]
-                need = halfs[i] + halfs[j] + gap  # [need_x, need_y]
-                pen = need - np.abs(d)
-                if pen[0] > 0 and pen[1] > 0:  # boxes (plus gap) overlap
-                    axis = 0 if pen[0] < pen[1] else 1
-                    sign = 1.0 if d[axis] >= 0 else -1.0
-                    shift = pen[axis] / 2.0 * sign
-                    c[i, axis] -= shift
-                    c[j, axis] += shift
+        for i in range(n):
+            for j in range(i + 1, n):
+                bi, bj = pts[i] + disp[i], pts[j] + disp[j]
+                d = bi[:, None, :] - bj[None, :, :]
+                dmin = float(np.sqrt((d ** 2).sum(-1).min()))
+                overlap = dmin >= gap and (
+                    paths[i].contains_points(bj - disp[i]).any()
+                    or paths[j].contains_points(bi - disp[j]).any()
+                )
+                if dmin < gap or overlap:
+                    vec = (cents[i] + disp[i]) - (cents[j] + disp[j])
+                    norm = float(np.hypot(*vec)) or 1.0
+                    unit = vec / norm if norm > 1e-6 else np.array([1.0, 0.0])
+                    shift = step if overlap else (gap - dmin)
+                    disp[i] += unit * shift / 2
+                    disp[j] -= unit * shift / 2
                     moved = True
+        mag = np.hypot(disp[:, 0], disp[:, 1])
+        over = mag > max_disp
+        if over.any():
+            disp[over] *= (max_disp / mag[over])[:, None]
         if not moved:
             break
-    disp = c - centers
-    mag = np.hypot(disp[:, 0], disp[:, 1])
-    scale = np.where(mag > max_disp, max_disp / np.maximum(mag, 1e-9), 1.0)
-    return disp * scale[:, None]
+    return disp
 
 
 def _inside(rings: list, pt) -> bool:
@@ -160,7 +172,7 @@ def plot_top_countries_map(
     year_range=None,
     ax=None,
     dark: bool = False,
-    enlarge: float = 1.6,
+    enlarge: float = 1.35,
     gap: float = 3.5,
     label_min_share: float = 0.12,
     depth: float = 15.0,
@@ -185,7 +197,7 @@ def plot_top_countries_map(
 
     # View window with generous north/south whitespace; a surface-colored
     # backdrop spans it so the margin survives a tight-bbox save.
-    xmin, xmax, ymin, ymax = -178, 196, -92, 112
+    xmin, xmax, ymin, ymax = -186, 200, -96, 120
     ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                            facecolor=chrome["surface"], edgecolor="none", zorder=0))
 
@@ -211,11 +223,8 @@ def plot_top_countries_map(
         rings = [r for r in rings if len(r) >= 3]
         items.append((country, _enlarge(rings, enlarge, cap_deg=9.0)))
 
-    # Push bordering countries apart, then translate their geometry.
-    boxes = np.array([_bbox(r) for _, r in items])
-    centers = np.column_stack([(boxes[:, 0] + boxes[:, 2]) / 2, (boxes[:, 1] + boxes[:, 3]) / 2])
-    halfs = np.column_stack([(boxes[:, 2] - boxes[:, 0]) / 2, (boxes[:, 3] - boxes[:, 1]) / 2])
-    disp = _separate(centers, halfs, gap=gap)
+    # Nudge only the countries whose outlines touch/overlap, minimally.
+    disp = _separate([r for _, r in items], gap=gap)
     items = [(c, [r + d for r in rings]) for (c, rings), d in zip(items, disp)]
 
     def _off(x, y):

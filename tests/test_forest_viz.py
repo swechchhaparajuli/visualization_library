@@ -95,13 +95,13 @@ def test_enlarge_grows_ring_about_centroid():
     assert np.allclose(out[:-1].mean(axis=0), ring[:-1].mean(axis=0))
 
 
-def test_separate_pushes_overlapping_boxes_apart():
-    centers = np.array([[0.0, 0.0], [1.0, 0.0]])
-    halfs = np.array([[3.0, 3.0], [3.0, 3.0]])
-    disp = maps._separate(centers, halfs, gap=2.0, iters=500)
-    new = centers + disp
-    # centers end up at least (half_i + half_j + gap) apart on some axis
-    assert abs(new[1, 0] - new[0, 0]) >= 3.0 + 3.0 + 2.0 - 1e-6
+def test_separate_disconnects_overlapping_countries():
+    a = np.array([[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [0.0, 4.0], [0.0, 0.0]])
+    b = a + np.array([2.0, 0.0])  # overlaps a
+    disp = maps._separate([[a], [b]], gap=1.5)
+    va, vb = a + disp[0], b + disp[1]
+    dmin = np.sqrt(((va[:, None, :] - vb[None, :, :]) ** 2).sum(-1).min())
+    assert dmin >= 1.0  # outlines end up disconnected, ~gap apart
 
 
 def test_map_plots_with_synthetic_geometry():
