@@ -41,3 +41,7 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+
+# Raw source data (large workbooks are not tracked; processed CSVs are)
+data/raw/
+*.xlsx
