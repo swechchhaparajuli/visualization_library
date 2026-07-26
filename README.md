@@ -112,7 +112,9 @@ pushed apart so a clear gap separates them, and tiny outlying islands are
 dropped (e.g. Alaska) for clean silhouettes.
 
 Drivers are colored in consistent **pastel-green shades** (each driver keeps
-its shade everywhere). The exception is each country's **primary driver**:
+its shade everywhere), except **Permanent agriculture**, which uses a
+crop-field **gold** (cropland cue from the reference infographic). The other
+exception is each country's **primary driver**:
 its sector is filled with tiled **3-D icons** representing that driver —
 burning trees (wildfire), axes (logging), tractors (permanent agriculture),
 seedlings (shifting cultivation), etc. — with the icon count scaling to the
