@@ -21,7 +21,7 @@ import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
-from matplotlib.patches import PathPatch, Patch, Wedge
+from matplotlib.patches import PathPatch, Patch, Rectangle, Wedge
 from matplotlib.path import Path
 
 from forest_viz import data as _data
@@ -98,7 +98,7 @@ def _bbox(rings: list) -> np.ndarray:
     return np.array([pts[:, 0].min(), pts[:, 1].min(), pts[:, 0].max(), pts[:, 1].max()])
 
 
-def _separate(centers, halfs, gap, iters=600, max_disp=14.0):
+def _separate(centers, halfs, gap, iters=1200, max_disp=26.0):
     """Push overlapping axis-aligned boxes apart, leaving ``gap`` between them.
 
     Returns the per-box displacement (new_center - original_center), capped
@@ -180,8 +180,14 @@ def plot_top_countries_map(
         geometry = load_country_geometry(geometry)
 
     if ax is None:
-        _, ax = plt.subplots(figsize=(15, 8))
+        _, ax = plt.subplots(figsize=(16.5, 9))
     fig = ax.figure
+
+    # View window with generous north/south whitespace; a surface-colored
+    # backdrop spans it so the margin survives a tight-bbox save.
+    xmin, xmax, ymin, ymax = -178, 196, -92, 112
+    ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+                           facecolor=chrome["surface"], edgecolor="none", zorder=0))
 
     # Base map: every country, muted.
     for rings in geometry.values():
@@ -280,8 +286,8 @@ def plot_top_countries_map(
                       fontsize=8, color=chrome["text"], fontweight="bold", zorder=6)
         lbl.set_path_effects([mpe.withStroke(linewidth=2.8, foreground=chrome["surface"])])
 
-    ax.set_xlim(-175, 190)
-    ax.set_ylim(-60, 88)
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
     ax.set_aspect("equal")
     ax.axis("off")
     rng = f" ({year_range[0]}–{year_range[1]})" if year_range else ""
