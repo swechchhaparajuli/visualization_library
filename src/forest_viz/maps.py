@@ -384,15 +384,13 @@ def plot_top_countries_map(
                     t.set_path_effects([mpe.withStroke(linewidth=2.0, foreground=chrome["surface"])])
             start = end
 
-        # Crisp top-edge outline (surface gap + thin definition line).
+        # Light background-gap edge only (no dark border line).
         ax.add_patch(_patch(clip, top_t, facecolor="none", edgecolor=chrome["surface"],
                             linewidth=2.6, zorder=5))
-        ax.add_patch(_patch(clip, top_t, facecolor="none", edgecolor=chrome["text_secondary"],
-                            linewidth=0.5, zorder=5.1))
 
-        # Country label at the centroid (countries are displaced enough to
-        # keep names from colliding).
-        lbl = ax.text(cx, cy, country, transform=top_t, ha="center", va="center",
+        # Country label above the country, not on its face.
+        maxy = np.vstack(rings)[:, 1].max()
+        lbl = ax.text(cx, maxy + 2.0, country, transform=top_t, ha="center", va="bottom",
                       fontsize=8, color=chrome["text"], fontweight="bold", zorder=6)
         lbl.set_path_effects([mpe.withStroke(linewidth=2.8, foreground=chrome["surface"])])
 
