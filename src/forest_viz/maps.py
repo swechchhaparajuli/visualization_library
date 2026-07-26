@@ -16,6 +16,7 @@ y = latitude), which is enough for a highlight map.
 from __future__ import annotations
 
 import json
+import zlib
 from pathlib import Path as _FsPath
 
 import matplotlib.patheffects as mpe
@@ -29,30 +30,38 @@ from matplotlib.path import Path
 from forest_viz import data as _data
 from forest_viz import palette
 
-# Small 3-D icon per driver (Microsoft Fluent Emoji, MIT-licensed), used to
-# fill a country's primary-driver sector instead of a flat color.
+# Each driver's primary sector is drawn as a little diorama composed from a
+# SET of related 3-D icons (Microsoft Fluent Emoji, MIT-licensed), not one
+# repeated icon. Each entry is (icon-name, relative-size).
 _ICON_DIR = _FsPath(__file__).with_name("assets") / "icons"
-DRIVER_ICON = {
-    "Permanent agriculture": "tractor",
-    "Shifting cultivation": "seedling",
-    "Wildfire": "wildfire",
-    "Logging": "axe",
-    "Other natural disturbances": "tornado",
-    "Hard commodities": "pick",
-    "Settlements & Infrastructure": "construction",
+DRIVER_SCENE = {
+    "Permanent agriculture": [("tractor", 1.2), ("sheaf", 0.8), ("corn", 0.85), ("seedling", 0.7)],
+    "Shifting cultivation": [("seedling", 0.85), ("herb", 0.95), ("fire", 0.8), ("sheaf", 0.8)],
+    "Wildfire": [("wildfire", 1.15), ("tree", 0.95), ("fire", 0.8), ("deciduous", 0.95)],
+    "Logging": [("axe", 1.05), ("wood", 0.95), ("tree", 1.0), ("saw", 0.9)],
+    "Other natural disturbances": [("tornado", 1.05), ("rock", 0.85)],
+    "Hard commodities": [("pick", 1.05), ("gem", 0.8), ("rock", 0.9)],
+    "Settlements & Infrastructure": [("construction", 1.1), ("office", 1.0), ("house", 0.9)],
 }
 _ICON_CACHE: dict = {}
 
 
-def _icon(driver: str):
-    """Return the RGBA image array for a driver's icon, or None if missing."""
-    name = DRIVER_ICON.get(driver)
-    if name is None:
-        return None
+def _icon(name: str):
+    """Return the RGBA image array for an icon name, or None if missing."""
     if name not in _ICON_CACHE:
         p = _ICON_DIR / f"{name}.png"
         _ICON_CACHE[name] = plt.imread(str(p)) if p.exists() else None
     return _ICON_CACHE[name]
+
+
+def _scene(driver: str):
+    """Return the loaded diorama icon set for a driver, or None."""
+    spec = DRIVER_SCENE.get(driver)
+    if not spec:
+        return None
+    loaded = [(w, _icon(name)) for name, w in spec]
+    loaded = [(w, img) for w, img in loaded if img is not None]
+    return loaded or None
 
 # GeoJSON "ADMIN" names that differ from the data's country names.
 _DATA_TO_NE = {
@@ -212,41 +221,52 @@ def _primary_set(fracs: dict, tol: float = 0.05) -> set:
     return {d for d, f in fracs.items() if f > 0 and smax - f <= tol}
 
 
-def _tile_icons(ax, img, cx, cy, radius, start_deg, frac, rings, transform, zoom):
-    """Fill a pie sector (clipped to the country) with a grid of icon images.
+def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, zoom, seed):
+    """Compose a little diorama across a pie sector (clipped to the country).
 
-    ``start_deg`` is the wedge's leading angle; the sector spans ``frac*360``
-    degrees clockwise from it. The number of icons scales with the sector's
-    area, so a bigger share is covered by more icons.
+    Instead of one repeated icon, points in the sector are populated with a
+    mix of the driver's ``scene`` icons at varied sizes and jittered
+    positions, drawn back-to-front for depth. Icon count scales with area.
+    ``seed`` makes the layout deterministic per country.
     """
-    spacing = min(7.0, max(3.0, radius * 0.22))
+    rng = np.random.RandomState(seed)
+    spacing = min(6.5, max(2.6, radius * 0.20))
+    span = frac * 360.0
+
+    def _emit(x, y):
+        w, img = scene[rng.randint(len(scene))]
+        z = zoom * w * (0.82 + rng.rand() * 0.4)
+        return (y, x, z, img)
+
+    placed = []
     xs = np.arange(cx - radius, cx + radius + 1e-9, spacing)
     ys = np.arange(cy - radius, cy + radius + 1e-9, spacing)
-    span = frac * 360.0
-    placed = 0
     for x in xs:
         for y in ys:
-            dx, dy = x - cx, y - cy
-            if np.hypot(dx, dy) > radius * 0.97:
+            jx = x + (rng.rand() - 0.5) * spacing * 0.75
+            jy = y + (rng.rand() - 0.5) * spacing * 0.75
+            dx, dy = jx - cx, jy - cy
+            if np.hypot(dx, dy) > radius * 0.95:
                 continue
-            ang = np.degrees(np.arctan2(dy, dx))
-            if (start_deg - ang) % 360 > span:  # outside this driver's sector
+            if (start_deg - np.degrees(np.arctan2(dy, dx))) % 360 > span:
                 continue
-            if not _inside(rings, (x, y)):
+            if not _inside(rings, (jx, jy)):
                 continue
-            ax.add_artist(AnnotationBbox(
-                OffsetImage(img, zoom=zoom), (x, y), xycoords=transform,
-                frameon=False, pad=0, zorder=5.5))
-            placed += 1
-    if placed == 0:  # tiny sector: guarantee at least one icon
+            placed.append(_emit(jx, jy))
+
+    if not placed:  # tiny sector: guarantee at least one element
         mid = np.radians(start_deg - span / 2.0)
         for rr in (0.5, 0.35, 0.65):
             x, y = cx + radius * rr * np.cos(mid), cy + radius * rr * np.sin(mid)
             if _inside(rings, (x, y)):
-                ax.add_artist(AnnotationBbox(
-                    OffsetImage(img, zoom=zoom), (x, y), xycoords=transform,
-                    frameon=False, pad=0, zorder=5.5))
+                placed.append(_emit(x, y))
                 break
+
+    # Back-to-front: higher latitude first, lower (nearer) drawn last / on top.
+    for y, x, z, img in sorted(placed, key=lambda t: -t[0]):
+        ax.add_artist(AnnotationBbox(
+            OffsetImage(img, zoom=z), (x, y), xycoords=transform,
+            frameon=False, pad=0, zorder=5.5))
 
 
 def _compound(rings: list) -> Path:
@@ -363,16 +383,17 @@ def plot_top_countries_map(
             if frac <= 0:
                 continue
             end = start - frac * 360.0
-            img = _icon(drv) if drv in primary else None
-            # Primary driver: themed "biome" color behind its icons.
+            scene = _scene(drv) if drv in primary else None
+            # Primary driver: themed "biome" color behind its diorama.
             # Secondary drivers: their muted pastel-green shade.
-            face = _lerp(_rgb(theme[drv]), (1.0, 1.0, 1.0), 0.12) if img is not None else colors[drv]
+            face = _lerp(_rgb(theme[drv]), (1.0, 1.0, 1.0), 0.12) if scene else colors[drv]
             wedge = Wedge((cx, cy), radius, end, start, facecolor=face,
                           edgecolor=chrome["surface"], linewidth=0.6, transform=top_t, zorder=4.5)
             ax.add_patch(wedge)
             wedge.set_clip_path(clip, top_t)
-            if img is not None:
-                _tile_icons(ax, img, cx, cy, radius, start, frac, rings, top_t, icon_zoom)
+            if scene:
+                seed = zlib.crc32(f"{country}:{drv}".encode()) & 0xFFFFFFFF
+                _diorama(ax, scene, cx, cy, radius, start, frac, rings, top_t, icon_zoom, seed)
             # Percentage label inside the country, along the wedge mid-angle.
             if frac >= label_min_share:
                 mid = np.radians((start + end) / 2.0)
