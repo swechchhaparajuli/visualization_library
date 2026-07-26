@@ -95,6 +95,16 @@ def test_enlarge_grows_ring_about_centroid():
     assert np.allclose(out[:-1].mean(axis=0), ring[:-1].mean(axis=0))
 
 
+def test_drop_small_islands_keeps_major_rings():
+    big = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]])
+    mid = np.array([[20.0, 0.0], [26.0, 0.0], [26.0, 6.0], [20.0, 6.0], [20.0, 0.0]])
+    tiny = np.array([[40.0, 40.0], [40.5, 40.0], [40.5, 40.5], [40.0, 40.5], [40.0, 40.0]])
+    kept = maps._drop_small_islands([big, mid, tiny], min_frac=0.01)
+    assert len(kept) == 2  # big + mid kept, tiny (0.25%) dropped
+    # never returns empty even if everything is below threshold
+    assert len(maps._drop_small_islands([big, tiny], min_frac=0.9)) == 1
+
+
 def test_separate_disconnects_overlapping_countries():
     a = np.array([[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [0.0, 4.0], [0.0, 0.0]])
     b = a + np.array([2.0, 0.0])  # overlaps a

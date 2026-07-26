@@ -82,6 +82,20 @@ def _representative_point(rings: list) -> tuple[float, float]:
     return cx, cy
 
 
+def _drop_small_islands(rings: list, min_frac: float) -> list:
+    """Drop outlying rings smaller than ``min_frac`` of the largest ring.
+
+    Keeps major landmasses (so archipelagos like Indonesia stay intact) while
+    removing tiny outlying islands that clutter a big country's silhouette.
+    """
+    if len(rings) <= 1:
+        return rings
+    areas = [_ring_area_centroid(r)[0] for r in rings]
+    biggest = max(areas) or 1.0
+    kept = [r for r, a in zip(rings, areas) if a / biggest >= min_frac]
+    return kept or [_largest_ring(rings)]
+
+
 def _enlarge(rings: list, factor: float, cap_deg: float) -> list:
     """Scale each ring about its own centroid; big countries grow less."""
     reach = max(float(np.abs(r - r[:-1].mean(axis=0)).max()) for r in rings) or 1.0
@@ -176,6 +190,7 @@ def plot_top_countries_map(
     gap: float = 3.5,
     label_min_share: float = 0.12,
     depth: float = 15.0,
+    island_min_frac: float = 0.01,
 ):
     """Pop-out map of the top ``n`` loss countries, each sliced by driver.
 
@@ -220,7 +235,7 @@ def plot_top_countries_map(
         ne = _DATA_TO_NE.get(country, country)
         if ne in _MAINLAND_ONLY:
             rings = [_largest_ring(rings)]
-        rings = [r for r in rings if len(r) >= 3]
+        rings = _drop_small_islands([r for r in rings if len(r) >= 3], island_min_frac)
         items.append((country, _enlarge(rings, enlarge, cap_deg=9.0)))
 
     # Nudge only the countries whose outlines touch/overlap, minimally.
