@@ -131,6 +131,20 @@ def _inside(rings: list, pt) -> bool:
     return any(Path(r).contains_point(pt) for r in rings)
 
 
+def _rgb(hex_color: str) -> tuple:
+    h = hex_color.lstrip("#")
+    return tuple(int(h[i : i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def _darken(color, factor: float) -> tuple:
+    r, g, b = color if isinstance(color, tuple) else _rgb(color)
+    return (r * factor, g * factor, b * factor)
+
+
+def _lerp(c0: tuple, c1: tuple, t: float) -> tuple:
+    return tuple(a + (b - a) * t for a, b in zip(c0, c1))
+
+
 def _compound(rings: list) -> Path:
     return Path.make_compound_path(*[Path(r) for r in rings])
 
@@ -149,13 +163,15 @@ def plot_top_countries_map(
     enlarge: float = 1.6,
     gap: float = 3.5,
     label_min_share: float = 0.12,
+    depth: float = 15.0,
 ):
     """Pop-out map of the top ``n`` loss countries, each sliced by driver.
 
     ``geometry`` is a path to a countries GeoJSON or the dict from
     :func:`load_country_geometry`. ``enlarge`` scales the highlighted
     countries (capped for large ones); ``gap`` is the degrees of space kept
-    between bordering countries.
+    between bordering countries; ``depth`` is the extruded 3-D thickness in
+    points.
     """
     chrome = palette.chrome(dark=dark)
     colors = palette.driver_colors(dark=dark)
@@ -196,20 +212,36 @@ def plot_top_countries_map(
     disp = _separate(centers, halfs, gap=gap)
     items = [(c, [r + d for r in rings]) for (c, rings), d in zip(items, disp)]
 
-    # Lift/shadow offsets in points (shadow down-right, country up).
-    shadow_t = mtransforms.offset_copy(ax.transData, fig=fig, x=6, y=-7, units="points")
-    lift_t = mtransforms.offset_copy(ax.transData, fig=fig, x=0, y=4, units="points")
+    def _off(x, y):
+        return mtransforms.offset_copy(ax.transData, fig=fig, x=x, y=y, units="points")
+
+    # The extruded top face is lifted `depth` points up; side-wall layers fill
+    # the space down to the footprint on the map.
+    top_t = _off(0, depth)
+    n_layers = max(int(depth), 8)
 
     for country, rings in items:
         clip = _compound(rings)
-        ax.add_patch(_patch(clip, shadow_t, facecolor=mc["shadow"], edgecolor="none",
-                            alpha=0.28, zorder=3))
 
         cx, cy = _representative_point(rings)
         radius = max(float(np.hypot(*(np.vstack(rings) - [cx, cy]).T).max()), 1.0) * 1.05
 
         shares = wide.loc[country, order]
         total = float(shares.sum()) or 1.0
+        dominant = max(order, key=lambda d: float(shares[d]))
+
+        # Contact shadow on the map, then the extruded side wall (dark base ->
+        # lighter near the top), giving each country a solid 3-D thickness.
+        ax.add_patch(_patch(clip, _off(4, -3), facecolor=mc["shadow"], edgecolor="none",
+                            alpha=0.22, zorder=2.8))
+        wall_lo = _darken(colors[dominant], 0.38)
+        wall_hi = _darken(colors[dominant], 0.68)
+        for i in range(n_layers + 1):
+            t = i / n_layers
+            ax.add_patch(_patch(clip, _off(0, depth * t), facecolor=_lerp(wall_lo, wall_hi, t),
+                                edgecolor="none", zorder=3 + t))
+
+        # Top face: pie wedges clipped to the country outline.
         start = 90.0
         for drv in order:
             frac = float(shares[drv]) / total
@@ -217,9 +249,9 @@ def plot_top_countries_map(
                 continue
             end = start - frac * 360.0
             wedge = Wedge((cx, cy), radius, end, start, facecolor=colors[drv],
-                          edgecolor=chrome["surface"], linewidth=0.6, transform=lift_t, zorder=4)
+                          edgecolor=chrome["surface"], linewidth=0.6, transform=top_t, zorder=4.5)
             ax.add_patch(wedge)
-            wedge.set_clip_path(clip, lift_t)
+            wedge.set_clip_path(clip, top_t)
             # Percentage label inside the country, along the wedge mid-angle.
             if frac >= label_min_share:
                 mid = np.radians((start + end) / 2.0)
@@ -230,21 +262,21 @@ def plot_top_countries_map(
                         pt = cand
                         break
                 if pt is not None:
-                    t = ax.text(pt[0], pt[1], f"{frac * 100:.0f}%", transform=lift_t,
+                    t = ax.text(pt[0], pt[1], f"{frac * 100:.0f}%", transform=top_t,
                                 ha="center", va="center", fontsize=7.5, zorder=6,
                                 color=chrome["text"], fontweight="bold")
                     t.set_path_effects([mpe.withStroke(linewidth=2.0, foreground=chrome["surface"])])
             start = end
 
-        # Background-gap outline (thick surface) + thin definition line.
-        ax.add_patch(_patch(clip, lift_t, facecolor="none", edgecolor=chrome["surface"],
+        # Crisp top-edge outline (surface gap + thin definition line).
+        ax.add_patch(_patch(clip, top_t, facecolor="none", edgecolor=chrome["surface"],
                             linewidth=2.6, zorder=5))
-        ax.add_patch(_patch(clip, lift_t, facecolor="none", edgecolor=chrome["text_secondary"],
+        ax.add_patch(_patch(clip, top_t, facecolor="none", edgecolor=chrome["text_secondary"],
                             linewidth=0.5, zorder=5.1))
 
         # Country label at the centroid (countries are displaced enough to
         # keep names from colliding).
-        lbl = ax.text(cx, cy, country, transform=lift_t, ha="center", va="center",
+        lbl = ax.text(cx, cy, country, transform=top_t, ha="center", va="center",
                       fontsize=8, color=chrome["text"], fontweight="bold", zorder=6)
         lbl.set_path_effects([mpe.withStroke(linewidth=2.8, foreground=chrome["surface"])])
 

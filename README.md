@@ -108,9 +108,12 @@ muted base map with a drop shadow (as if pulled out). Each country's own
 shape is sliced into pie wedges, colored by driver (same colors as the bar
 charts), with wedge angles proportional to each driver's share of that
 country's loss and the percentages labeled inside the shape. Bordering
-countries are pushed apart so a clear gap separates them (`enlarge` and
-`gap` are tunable). Outlying territories are dropped (e.g. Alaska).
-Geometry is a bundled Natural Earth 110m GeoJSON; no geopandas required.
+countries are pushed apart so a clear gap separates them. Each country is
+extruded into a 3-D slab — a shaded side wall (a darkened tint of its
+dominant driver) rising to the pie-colored top face — so they read as
+solid, clearly distinguishable blocks (`enlarge`, `gap`, and `depth` are
+tunable). Outlying territories are dropped (e.g. Alaska). Geometry is a
+bundled Natural Earth 110m GeoJSON; no geopandas required.
 
 ```python
 from forest_viz import data, maps, theme
