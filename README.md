@@ -103,13 +103,14 @@ python examples/generate_figures.py data/raw/global.xlsx
 
 ### Pop-out map
 
-`plot_top_countries_map` lifts the top-N countries off a muted base map with
-a drop shadow (as if pulled out) and fills each country's own shape with its
-driver breakdown: stacked horizontal bands, colored by driver (same colors
-as the bar charts), band heights proportional to each driver's share of that
-country's loss. Bordering countries are inset slightly so a background gap
-separates them. Geometry is a bundled Natural Earth 110m GeoJSON; no
-geopandas required.
+`plot_top_countries_map` enlarges the top-N countries and lifts them off a
+muted base map with a drop shadow (as if pulled out). Each country's own
+shape is sliced into pie wedges, colored by driver (same colors as the bar
+charts), with wedge angles proportional to each driver's share of that
+country's loss and the percentages labeled inside the shape. Bordering
+countries are pushed apart so a clear gap separates them (`enlarge` and
+`gap` are tunable). Outlying territories are dropped (e.g. Alaska).
+Geometry is a bundled Natural Earth 110m GeoJSON; no geopandas required.
 
 ```python
 from forest_viz import data, maps, theme

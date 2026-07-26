@@ -87,12 +87,21 @@ def test_readable_text_contrast():
     assert plots._readable_text("#2a78d6") == "#ffffff"  # white on mid-blue
 
 
-def test_shrink_insets_ring_toward_centroid():
+def test_enlarge_grows_ring_about_centroid():
     ring = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]])
-    out = maps._shrink(ring, gap=0.1)
-    # inset ring is strictly inside the original bounding box
-    assert out[:, 0].min() > 0.0 and out[:, 0].max() < 10.0
-    assert out[:, 1].min() > 0.0 and out[:, 1].max() < 10.0
+    out = maps._enlarge([ring], factor=1.5, cap_deg=100.0)[0]
+    # grown outward past the original bounding box, centroid preserved
+    assert out[:, 0].max() > 10.0 and out[:, 0].min() < 0.0
+    assert np.allclose(out[:-1].mean(axis=0), ring[:-1].mean(axis=0))
+
+
+def test_separate_pushes_overlapping_boxes_apart():
+    centers = np.array([[0.0, 0.0], [1.0, 0.0]])
+    halfs = np.array([[3.0, 3.0], [3.0, 3.0]])
+    disp = maps._separate(centers, halfs, gap=2.0, iters=500)
+    new = centers + disp
+    # centers end up at least (half_i + half_j + gap) apart on some axis
+    assert abs(new[1, 0] - new[0, 0]) >= 3.0 + 3.0 + 2.0 - 1e-6
 
 
 def test_map_plots_with_synthetic_geometry():
