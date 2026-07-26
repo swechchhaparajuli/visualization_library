@@ -430,7 +430,7 @@ def plot_top_countries_map(
     ax.set_title(f"Top {n} countries by tree cover loss, split by driver{rng}",
                  color=chrome["text"], fontweight="bold", fontsize=15)
 
-    handles = [Patch(facecolor=theme[d], edgecolor=chrome["surface"], label=d) for d in order]
+    handles = [Patch(facecolor=colors[d], edgecolor=chrome["surface"], label=d) for d in order]
     ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.01),
               frameon=False, fontsize=9, labelcolor=chrome["text_secondary"], ncol=4)
     return ax
