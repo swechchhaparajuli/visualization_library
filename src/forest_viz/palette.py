@@ -23,15 +23,21 @@ DRIVER_ORDER = [
     "Settlements & Infrastructure",
 ]
 
-# Each driver is assigned a fixed shade of pastel green (light -> dark),
-# consistent across every country. Order matches DRIVER_ORDER. The one
-# exception is Permanent agriculture (slot 0), colored crop-field gold like
-# the reference infographic's cropland.
-_SLOTS_LIGHT = ["#e4b23e", "#c9e8bd", "#addca3", "#8fd08b", "#6fc276", "#4fb265", "#2f9f57"]
-_SLOTS_DARK = ["#c9992f", "#9ccb8a", "#7fbd75", "#61ad63", "#469a55", "#2f8547", "#1f6f39"]
+# Secondary (non-primary) drivers use a fixed pastel-green shade, consistent
+# across every country. Order matches DRIVER_ORDER.
+_SLOTS_LIGHT = ["#e3f3d8", "#c9e8bd", "#addca3", "#8fd08b", "#6fc276", "#4fb265", "#2f9f57"]
+_SLOTS_DARK = ["#b7d9a6", "#9ccb8a", "#7fbd75", "#61ad63", "#469a55", "#2f8547", "#1f6f39"]
+
+# Themed "biome" color used ONLY for a country's primary driver (behind its
+# icons), echoing the reference infographic's land-use palette.
+_THEME_LIGHT = ["#e4b23e", "#b3c94f", "#d9663a", "#3f8f6e", "#6f93a6", "#8a8f99", "#b5563f"]
+_THEME_DARK = ["#c9992f", "#97ad3f", "#bf5330", "#2f7d5e", "#5a7d8f", "#74797f", "#9c4634"]
 
 DRIVER_COLORS = dict(zip(DRIVER_ORDER, _SLOTS_LIGHT))
 DRIVER_COLORS_DARK = dict(zip(DRIVER_ORDER, _SLOTS_DARK))
+
+DRIVER_THEME = dict(zip(DRIVER_ORDER, _THEME_LIGHT))
+DRIVER_THEME_DARK = dict(zip(DRIVER_ORDER, _THEME_DARK))
 
 # Single-hue accent for one-series charts (blue slot 1).
 ACCENT = "#2a78d6"
@@ -57,8 +63,13 @@ DARK = {
 
 
 def driver_colors(dark: bool = False) -> dict[str, str]:
-    """Return the driver -> hex color map for the chosen mode."""
+    """Return the driver -> pastel-green (secondary) color map."""
     return dict(DRIVER_COLORS_DARK if dark else DRIVER_COLORS)
+
+
+def driver_theme(dark: bool = False) -> dict[str, str]:
+    """Return the driver -> themed (primary) color map."""
+    return dict(DRIVER_THEME_DARK if dark else DRIVER_THEME)
 
 
 def chrome(dark: bool = False) -> dict[str, str]:

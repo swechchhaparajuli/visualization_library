@@ -111,16 +111,17 @@ they read as solid, clearly distinguishable blocks. Bordering countries are
 pushed apart so a clear gap separates them, and tiny outlying islands are
 dropped (e.g. Alaska) for clean silhouettes.
 
-Drivers are colored in consistent **pastel-green shades** (each driver keeps
-its shade everywhere), except **Permanent agriculture**, which uses a
-crop-field **gold** (cropland cue from the reference infographic). The other
-exception is each country's **primary driver**:
-its sector is filled with tiled **3-D icons** representing that driver —
-burning trees (wildfire), axes (logging), tractors (permanent agriculture),
-seedlings (shifting cultivation), etc. — with the icon count scaling to the
-share. If two drivers are within ~5 points of each other (an effective tie),
-both are iconized. Icons are Microsoft Fluent Emoji (MIT-licensed), bundled
-under `src/forest_viz/assets/icons/`.
+Secondary drivers are colored in consistent muted **pastel-green shades**
+(each driver keeps its shade everywhere). Each country's **primary driver**
+is styled like the reference infographic instead: its sector takes a themed
+**biome color** — crop gold (permanent agriculture), ember orange
+(wildfire), forest teal (logging), olive (shifting cultivation), brick
+(settlements), etc. — and is filled with tiled **3-D icons** of that driver
+(tractors, burning trees, axes, seedlings…), with the icon count scaling to
+the share. The 3-D slab's side wall and the legend follow the theme color.
+If two drivers are within ~5 points of each other (an effective tie), both
+are treated as primary. Icons are Microsoft Fluent Emoji (MIT-licensed),
+bundled under `src/forest_viz/assets/icons/`.
 
 `enlarge`, `gap`, `depth`, `island_min_frac`, and `icon_scale` are tunable.
 Geometry is a bundled Natural Earth 110m GeoJSON; no geopandas required.

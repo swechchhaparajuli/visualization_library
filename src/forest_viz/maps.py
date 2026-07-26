@@ -281,6 +281,7 @@ def plot_top_countries_map(
     """
     chrome = palette.chrome(dark=dark)
     colors = palette.driver_colors(dark=dark)
+    theme = palette.driver_theme(dark=dark)
     mc = _DARK if dark else _LIGHT
     if isinstance(geometry, (str, bytes)) or hasattr(geometry, "__fspath__"):
         geometry = load_country_geometry(geometry)
@@ -346,8 +347,8 @@ def plot_top_countries_map(
         # lighter near the top), giving each country a solid 3-D thickness.
         ax.add_patch(_patch(clip, _off(4, -3), facecolor=mc["shadow"], edgecolor="none",
                             alpha=0.22, zorder=2.8))
-        wall_lo = _darken(colors[dominant], 0.38)
-        wall_hi = _darken(colors[dominant], 0.68)
+        wall_lo = _darken(theme[dominant], 0.38)
+        wall_hi = _darken(theme[dominant], 0.68)
         for i in range(n_layers + 1):
             t = i / n_layers
             ax.add_patch(_patch(clip, _off(0, depth * t), facecolor=_lerp(wall_lo, wall_hi, t),
@@ -363,7 +364,9 @@ def plot_top_countries_map(
                 continue
             end = start - frac * 360.0
             img = _icon(drv) if drv in primary else None
-            face = _pale(colors[drv]) if img is not None else colors[drv]
+            # Primary driver: themed "biome" color behind its icons.
+            # Secondary drivers: their muted pastel-green shade.
+            face = _lerp(_rgb(theme[drv]), (1.0, 1.0, 1.0), 0.12) if img is not None else colors[drv]
             wedge = Wedge((cx, cy), radius, end, start, facecolor=face,
                           edgecolor=chrome["surface"], linewidth=0.6, transform=top_t, zorder=4.5)
             ax.add_patch(wedge)
@@ -406,7 +409,7 @@ def plot_top_countries_map(
     ax.set_title(f"Top {n} countries by tree cover loss, split by driver{rng}",
                  color=chrome["text"], fontweight="bold", fontsize=15)
 
-    handles = [Patch(facecolor=colors[d], edgecolor=chrome["surface"], label=d) for d in order]
+    handles = [Patch(facecolor=theme[d], edgecolor=chrome["surface"], label=d) for d in order]
     ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.01),
               frameon=False, fontsize=9, labelcolor=chrome["text_secondary"], ncol=4)
     return ax
