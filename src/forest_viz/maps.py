@@ -362,7 +362,7 @@ def plot_top_countries_map(
             # Secondary drivers: their muted pastel-green shade.
             face = _lerp(_rgb(theme[drv]), (1.0, 1.0, 1.0), 0.12) if scene else colors[drv]
             wedge = Wedge((cx, cy), radius, end, start, facecolor=face,
-                          edgecolor=chrome["surface"], linewidth=0.6, transform=top_t, zorder=4.5)
+                          edgecolor="none", transform=top_t, zorder=4.5)
             ax.add_patch(wedge)
             wedge.set_clip_path(clip, top_t)
             if scene:
@@ -383,10 +383,6 @@ def plot_top_countries_map(
                                 color=chrome["text"], fontweight="bold")
                     t.set_path_effects([mpe.withStroke(linewidth=2.0, foreground=chrome["surface"])])
             start = end
-
-        # Light background-gap edge only (no dark border line).
-        ax.add_patch(_patch(clip, top_t, facecolor="none", edgecolor=chrome["surface"],
-                            linewidth=2.6, zorder=5))
 
         # Country label above the country, not on its face.
         maxy = np.vstack(rings)[:, 1].max()
