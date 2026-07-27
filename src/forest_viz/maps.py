@@ -39,9 +39,9 @@ _LEGEND_MOTIF = {
     "Shifting cultivation": "seedling",
     "Wildfire": "flame",
     "Logging": "log",
-    "Other natural disturbances": "evergreen",
+    "Other natural disturbances": "tornado",
     "Hard commodities": "oil_derrick",
-    "Settlements & Infrastructure": "barn",
+    "Settlements & Infrastructure": "cityscape",
 }
 
 

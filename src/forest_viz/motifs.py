@@ -22,6 +22,8 @@ _C = {
     "char": "#1b1813",  # charred, near-black
     "steel": "#41464c", "gold": "#e6b93a", "gold_dark": "#bd8f24",
     "ore": "#6c7075", "copper": "#c67a3e", "gold_speck": "#e8c94a",
+    "storm": "#8a91a1", "storm_dark": "#666d7e",
+    "city": "#5f6b78", "city_dark": "#48525d", "window": "#e8d59a",
 }
 _SHADOW = "#1c2b22"
 
@@ -180,11 +182,43 @@ def ore_rock(ax, x, y, s, t, z):
                             edgecolor="none", transform=t, zorder=z + 0.02))
 
 
+def tornado(ax, x, y, s, t, z):
+    """A funnel-cloud tornado with a storm cloud on top."""
+    _shadow(ax, x, y, 0.42, s, t, z)
+    g, gd = _C["storm"], _C["storm_dark"]
+    funnel = [(-0.34, 1.0), (0.34, 1.0), (0.18, 0.7), (0.12, 0.45),
+              (0.05, 0.18), (0.0, 0.0), (-0.05, 0.18), (-0.12, 0.45), (-0.18, 0.7)]
+    _poly(ax, x, y, funnel, s, g, t, z + 0.01)
+    for yy, w in ((0.82, 0.24), (0.62, 0.17), (0.42, 0.11), (0.24, 0.07)):
+        ax.add_patch(Ellipse((x, y + yy * s), w * 2 * s, 0.07 * s, facecolor=gd,
+                            edgecolor="none", alpha=0.55, transform=t, zorder=z + 0.02))
+    for ox, oy, r in ((-0.2, 1.02, 0.16), (0.08, 1.06, 0.2), (0.34, 1.0, 0.14), (-0.02, 1.0, 0.18)):
+        ax.add_patch(Ellipse((x + ox * s, y + oy * s), r * 2 * s, r * 1.3 * s, facecolor=gd,
+                            edgecolor="none", transform=t, zorder=z + 0.03))
+
+
+def cityscape(ax, x, y, s, t, z):
+    """A cluster of tall towers with lit windows."""
+    _shadow(ax, x, y, 0.7, s, t, z)
+    c, win = _C["city"], _C["window"]
+    for bx, w, h in ((-0.3, 0.16, 0.62), (-0.09, 0.19, 0.98), (0.14, 0.15, 0.78), (0.33, 0.13, 0.5)):
+        _poly(ax, x, y, [(bx - w / 2, 0), (bx + w / 2, 0), (bx + w / 2, h), (bx - w / 2, h)], s, c, t, z + 0.01)
+        r = 0
+        while 0.09 + r * 0.15 < h - 0.06:
+            wy = 0.09 + r * 0.15
+            for cwi in (0, 1):
+                wx = bx - w * 0.2 + cwi * w * 0.4
+                _poly(ax, x, y, [(wx - 0.028, wy), (wx + 0.028, wy),
+                                 (wx + 0.028, wy + 0.08), (wx - 0.028, wy + 0.08)], s, win, t, z + 0.02)
+            r += 1
+
+
 MOTIF = {
     "evergreen": evergreen, "round_tree": round_tree, "flame": flame,
     "burnt_tree": burnt_tree, "burnt_snag": burnt_snag,
     "log": log, "stump": stump, "crop": crop, "seedling": seedling, "barn": barn,
     "oil_derrick": oil_derrick, "gold_bars": gold_bars, "ore_rock": ore_rock,
+    "tornado": tornado, "cityscape": cityscape,
 }
 
 # Which motifs (and relative sizes) compose each driver's diorama.
@@ -194,7 +228,7 @@ SCENES = {
     "Wildfire": [("burnt_tree", 1.05), ("burnt_tree", 0.9), ("flame", 1.0),
                  ("flame", 0.85), ("flame", 0.7), ("burnt_snag", 0.8)],
     "Logging": [("evergreen", 1.05), ("stump", 0.9), ("log", 1.0), ("stump", 0.8)],
-    "Other natural disturbances": [("flame", 0.9), ("evergreen", 0.85)],
+    "Other natural disturbances": [("tornado", 1.15), ("tornado", 0.95), ("evergreen", 0.8)],
     "Hard commodities": [("oil_derrick", 1.1), ("gold_bars", 0.85), ("ore_rock", 0.95)],
-    "Settlements & Infrastructure": [("barn", 1.1), ("barn", 0.9)],
+    "Settlements & Infrastructure": [("cityscape", 1.15), ("cityscape", 0.95)],
 }
