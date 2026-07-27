@@ -168,6 +168,16 @@ def _inside(rings: list, pt) -> bool:
     return any(Path(r).contains_point(pt) for r in rings)
 
 
+def _inside_any(list_of_rings: list, pt) -> bool:
+    return any(_inside(rings, pt) for rings in list_of_rings)
+
+
+def _band_hits(list_of_rings: list, x0: float, x1: float, y: float, n: int = 7) -> bool:
+    """True if any sample point along the horizontal span [x0, x1] at y lands
+    inside one of the countries (used to test if a label would overlap)."""
+    return any(_inside_any(list_of_rings, (x, y)) for x in np.linspace(x0, x1, n))
+
+
 def _rgb(hex_color: str) -> tuple:
     h = hex_color.lstrip("#")
     return tuple(int(h[i : i + 2], 16) / 255 for i in (0, 2, 4))
@@ -379,16 +389,30 @@ def plot_top_countries_map(
                         break
                 if pt is not None:
                     t = ax.text(pt[0], pt[1], f"{frac * 100:.0f}%", transform=top_t,
-                                ha="center", va="center", fontsize=7.5, zorder=6,
+                                ha="center", va="center", fontsize=10.5, zorder=6,
                                 color=chrome["text"], fontweight="bold")
-                    t.set_path_effects([mpe.withStroke(linewidth=2.0, foreground=chrome["surface"])])
+                    t.set_path_effects([mpe.withStroke(linewidth=2.6, foreground=chrome["surface"])])
             start = end
 
-        # Country label above the country, not on its face.
-        maxy = np.vstack(rings)[:, 1].max()
-        lbl = ax.text(cx, maxy + 2.0, country, transform=top_t, ha="center", va="bottom",
-                      fontsize=8, color=chrome["text"], fontweight="bold", zorder=6)
-        lbl.set_path_effects([mpe.withStroke(linewidth=2.8, foreground=chrome["surface"])])
+        # Country label above the country; if "above" would land on another
+        # country, place it beside instead.
+        pts = np.vstack(rings)
+        minx, maxx = pts[:, 0].min(), pts[:, 0].max()
+        maxy = pts[:, 1].max()
+        others = [r for c2, r in items if c2 != country]
+        halfw = len(country) * 1.2  # ~half the label's width, in degrees
+        ly_above = maxy + 2.8
+        if not _band_hits(others, cx - halfw, cx + halfw, ly_above):
+            lx, ly, ha, va = cx, ly_above, "center", "bottom"
+        elif not _band_hits(others, maxx + 2.5, maxx + 2.5 + 2 * halfw, cy):
+            lx, ly, ha, va = maxx + 2.5, cy, "left", "center"
+        elif not _band_hits(others, minx - 2.5 - 2 * halfw, minx - 2.5, cy):
+            lx, ly, ha, va = minx - 2.5, cy, "right", "center"
+        else:
+            lx, ly, ha, va = cx, ly_above, "center", "bottom"
+        lbl = ax.text(lx, ly, country, transform=top_t, ha=ha, va=va,
+                      fontsize=11.5, color=chrome["text"], fontweight="bold", zorder=6)
+        lbl.set_path_effects([mpe.withStroke(linewidth=3.4, foreground=chrome["surface"])])
 
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
