@@ -24,6 +24,10 @@ _C = {
     "ore": "#6c7075", "copper": "#c67a3e", "gold_speck": "#e8c94a",
     "storm": "#8a91a1", "storm_dark": "#666d7e",
     "city": "#5f6b78", "city_dark": "#48525d", "window": "#e8d59a",
+    "cob": "#e8c24a", "cob_leaf": "#5a9e3f",
+    "water": "#5b9bd5", "water_dark": "#3f7fb8",
+    "tractor": "#c0473c", "wheel": "#2b2b28", "hub": "#c9c9c4",
+    "charred": "#26221c",
 }
 _SHADOW = "#1c2b22"
 
@@ -213,12 +217,67 @@ def cityscape(ax, x, y, s, t, z):
             r += 1
 
 
+def corn(ax, x, y, s, t, z):
+    """A corn plant: green stalk, angled leaves, a yellow cob."""
+    _shadow(ax, x, y, 0.4, s, t, z)
+    _poly(ax, x, y, [(-0.03, 0), (0.03, 0), (0.03, 0.95), (-0.03, 0.95)], s, _C["stalk"], t, z + 0.01)
+    for oy, ang in ((0.3, 40), (0.5, -40), (0.68, 35)):
+        ax.add_patch(Ellipse((x + (0.12 if ang > 0 else -0.12) * s, y + oy * s), 0.26 * s, 0.1 * s,
+                             angle=ang, facecolor=_C["cob_leaf"], edgecolor="none", transform=t, zorder=z + 0.02))
+    ax.add_patch(Ellipse((x + 0.07 * s, y + 0.52 * s), 0.15 * s, 0.34 * s, angle=-12,
+                         facecolor=_C["cob"], edgecolor="none", transform=t, zorder=z + 0.03))
+
+
+def shrub(ax, x, y, s, t, z):
+    """A small rounded bush."""
+    _shadow(ax, x, y, 0.5, s, t, z)
+    for ox, oy, r in ((-0.16, 0.16, 0.2), (0.16, 0.16, 0.2), (0.0, 0.28, 0.25)):
+        ax.add_patch(Circle((x + ox * s, y + oy * s), r * s, facecolor=_C["tree2"],
+                            edgecolor="none", transform=t, zorder=z + 0.01))
+
+
+def tractor(ax, x, y, s, t, z):
+    """A simple side-view tractor."""
+    _shadow(ax, x, y, 0.7, s, t, z)
+    c = _C["tractor"]
+    _poly(ax, x, y, [(-0.34, 0.12), (0.16, 0.12), (0.16, 0.4), (-0.34, 0.4)], s, c, t, z + 0.01)  # body
+    _poly(ax, x, y, [(0.0, 0.4), (0.22, 0.4), (0.22, 0.64), (0.02, 0.64)], s, c, t, z + 0.02)      # cab
+    for wx, wr in ((0.12, 0.2), (-0.26, 0.12)):  # rear big, front small
+        ax.add_patch(Circle((x + wx * s, y + wr * s), wr * s, facecolor=_C["wheel"],
+                            edgecolor="none", transform=t, zorder=z + 0.03))
+        ax.add_patch(Circle((x + wx * s, y + wr * s), wr * 0.42 * s, facecolor=_C["hub"],
+                            edgecolor="none", transform=t, zorder=z + 0.04))
+
+
+def flood(ax, x, y, s, t, z):
+    """Wavy flood water."""
+    _shadow(ax, x, y, 0.5, s, t, z)
+    for i, (yy, col) in enumerate(((0.06, _C["water_dark"]), (0.2, _C["water"]), (0.34, _C["water_dark"]))):
+        xs = np.linspace(-0.4, 0.4, 25)
+        wave = 0.05 * np.sin(xs / 0.4 * np.pi * 2 + i)
+        top = np.column_stack([xs, yy + wave])
+        bot = np.column_stack([xs[::-1], np.full(len(xs), yy - 0.12)])
+        _poly(ax, x, y, np.vstack([top, bot]), s, col, t, z + 0.01 + i * 0.01)
+
+
 MOTIF = {
     "evergreen": evergreen, "round_tree": round_tree, "flame": flame,
     "burnt_tree": burnt_tree, "burnt_snag": burnt_snag,
     "log": log, "stump": stump, "crop": crop, "seedling": seedling, "barn": barn,
     "oil_derrick": oil_derrick, "gold_bars": gold_bars, "ore_rock": ore_rock,
     "tornado": tornado, "cityscape": cityscape,
+    "corn": corn, "shrub": shrub, "tractor": tractor, "flood": flood,
+}
+
+# Motif sets for the over-time pictograph (one entry per driver).
+TIMESERIES = {
+    "Permanent agriculture": ["crop", "corn"],
+    "Shifting cultivation": ["shrub", "tractor", "flame"],
+    "Wildfire": ["burnt_tree", "flame"],
+    "Logging": ["log", "stump"],
+    "Other natural disturbances": ["tornado", "flood"],
+    "Hard commodities": ["gold_bars", "ore_rock", "oil_derrick"],
+    "Settlements & Infrastructure": ["cityscape"],
 }
 
 # Which motifs (and relative sizes) compose each driver's diorama.

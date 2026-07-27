@@ -636,18 +636,33 @@ def plot_drivers_over_time_3d(drivers, country=None, ax=None, dark=False):
     ax.text(-4.6, gmax * yscale / 2, "Tree cover loss (ha)", rotation=90, ha="center",
             va="center", fontsize=10, color=chrome["text_secondary"])
 
-    # Draw back (far) rows first so nearer driver rows overlap them.
+    # Each year's value is a column of the driver's motifs stacked to the bar
+    # height. Draw back (far) rows first so nearer rows overlap them.
+    msize, step = 1.5, 1.25
     for r in range(n - 1, -1, -1):
         d = rows[r]
-        bx, byb, color = r * dpx, r * dpy, theme[d]
+        bx, byb = r * dpx, r * dpy
         zlayer = (n - r) * 1000
+        keys = _motifs.TIMESERIES.get(d) or [_LEGEND_MOTIF.get(d, "crop")]
+        if d == "Wildfire":  # charred ground under the wildfire row
+            x0, x1 = bx - 0.4, bx + n_years * xstep + 0.6
+            ax.add_patch(Polygon([(x0, byb), (x1, byb), (x1 + dx, byb + dy), (x0 + dx, byb + dy)],
+                                 closed=True, facecolor="#26221c", alpha=0.5, edgecolor="none",
+                                 zorder=zlayer - 0.5))
         for xi, yr in enumerate(years):
             val = float(wide.loc[yr, d])
             if val <= 0:
                 continue
-            _bar3d(ax, bx + xi * xstep, byb, w, val * yscale, dx, dy, color,
-                   chrome["surface"], zlayer + (n_years - xi))
-        ax.text(bx + n_years * xstep + 0.4, byb + 0.2, d, ha="left", va="bottom",
+            h = val * yscale
+            cx = bx + xi * xstep + w / 2
+            rng = np.random.RandomState(zlib.crc32(f"{d}{yr}".encode()) & 0xFFFFFFFF)
+            for i in range(max(1, int(round(h / step)))):
+                key = keys[rng.randint(len(keys))]
+                jx = cx + (rng.rand() - 0.5) * 0.3
+                sz = msize * (0.9 + rng.rand() * 0.25)
+                _motifs.MOTIF[key](ax, jx, byb + i * step, sz, ax.transData,
+                                   zlayer + (n_years - xi) + i * 0.02)
+        ax.text(bx + n_years * xstep + 1.0, byb + 0.2, d, ha="left", va="bottom",
                 fontsize=9.5, color=chrome["text"], fontweight="bold", zorder=zlayer + 9999)
 
     for xi, yr in enumerate(years):  # year ticks along the front baseline
@@ -655,8 +670,8 @@ def plot_drivers_over_time_3d(drivers, country=None, ax=None, dark=False):
             ax.text(xi * xstep + w / 2, -0.7, str(yr), ha="center", va="top",
                     fontsize=9, color=chrome["text_secondary"])
 
-    ax.set_xlim(-5, n_years * xstep + n * dpx + 9)
-    ax.set_ylim(-1.8, n * dpy + gmax * yscale + 1)
+    ax.set_xlim(-5, n_years * xstep + n * dpx + 10)
+    ax.set_ylim(-1.8, n * dpy + gmax * yscale + msize + 1.5)
     ax.set_aspect("equal")
     ax.axis("off")
     scope = country if country else "Global"

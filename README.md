@@ -91,7 +91,7 @@ python examples/generate_figures.py data/raw/global.xlsx
 | `plot_top_countries` | Which countries lost the most? | ranked horizontal bar |
 | `plot_top_countries_drivers` | For the top countries, what % of loss is which driver? | ranked bar, stacked by driver with % labels |
 | `plot_top_countries_map` | Where are the top countries, and their driver mix? | pop-out world map, each country filled by driver share |
-| `plot_drivers_over_time_3d` | How does the driver mix shift year to year? | layered isometric 3-D bars |
+| `plot_drivers_over_time_3d` | How does the driver mix shift year to year? | isometric pictograph — columns of driver motifs (ha axis) |
 | `plot_driver_pie` | Which drivers dominate overall? | pie, slices filled with driver motifs |
 
 ![Top countries pop-out map](reports/figures/top_countries_map.png)
