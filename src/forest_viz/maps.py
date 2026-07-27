@@ -22,7 +22,7 @@ import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
-from matplotlib.patches import PathPatch, Patch, Rectangle, Wedge
+from matplotlib.patches import PathPatch, Rectangle, Wedge
 from matplotlib.path import Path
 
 from forest_viz import data as _data
@@ -32,6 +32,17 @@ from forest_viz import palette
 # Each driver's primary sector is drawn as a little diorama composed from a
 # SET of flat vector motifs (see forest_viz.motifs), not one repeated icon.
 DRIVER_SCENE = _motifs.SCENES
+
+# One representative motif per driver, for the legend key.
+_LEGEND_MOTIF = {
+    "Permanent agriculture": "crop",
+    "Shifting cultivation": "seedling",
+    "Wildfire": "flame",
+    "Logging": "log",
+    "Other natural disturbances": "evergreen",
+    "Hard commodities": "stump",
+    "Settlements & Infrastructure": "barn",
+}
 
 
 def _scene(driver: str):
@@ -299,7 +310,7 @@ def plot_top_countries_map(
 
     # View window with generous north/south whitespace; a surface-colored
     # backdrop spans it so the margin survives a tight-bbox save.
-    xmin, xmax, ymin, ymax = -186, 200, -96, 120
+    xmin, xmax, ymin, ymax = -186, 200, -116, 120
     ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                            facecolor=chrome["surface"], edgecolor="none", zorder=0))
 
@@ -430,7 +441,16 @@ def plot_top_countries_map(
     ax.set_title(f"Top {n} countries by tree cover loss, split by driver{rng}",
                  color=chrome["text"], fontweight="bold", fontsize=15)
 
-    handles = [Patch(facecolor=colors[d], edgecolor=chrome["surface"], label=d) for d in order]
-    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.01),
-              frameon=False, fontsize=9, labelcolor=chrome["text_secondary"], ncol=4)
+    # Legend: draw each driver's motif (all drivers, primary or not) with its
+    # name, in a grid along the bottom whitespace.
+    cols = 4
+    col_x = np.linspace(-158, 66, cols)
+    row_y = (-88, -102)
+    for i, d in enumerate(palette.DRIVER_ORDER):
+        x, y = col_x[i % cols], row_y[i // cols]
+        key = _LEGEND_MOTIF.get(d)
+        if key:
+            _motifs.MOTIF[key](ax, x, y - 4.5, 10.0, ax.transData, 7)
+        ax.text(x + 9, y, d, ha="left", va="center", fontsize=10.5,
+                color=chrome["text_secondary"], zorder=7)
     return ax
