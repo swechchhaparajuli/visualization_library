@@ -48,6 +48,10 @@ _DATA_TO_NE = {
 # e.g. Alaska and Hawaii for the United States).
 _MAINLAND_ONLY = {"United States of America"}
 
+# Force a label side for specific countries ("left" / "right"); otherwise the
+# label goes above and falls back to a clear side automatically.
+_LABEL_SIDE = {"Argentina": "left"}
+
 # Map chrome (kept local to the map look).
 _LIGHT = {"land": "#dcdbd4", "border": "#b7b6ae", "shadow": "#0b0b0b"}
 _DARK = {"land": "#33332f", "border": "#4a4a47", "shadow": "#000000"}
@@ -402,7 +406,12 @@ def plot_top_countries_map(
         others = [r for c2, r in items if c2 != country]
         halfw = len(country) * 1.2  # ~half the label's width, in degrees
         ly_above = maxy + 2.8
-        if not _band_hits(others, cx - halfw, cx + halfw, ly_above):
+        override = _LABEL_SIDE.get(country)
+        if override == "left":
+            lx, ly, ha, va = minx - 2.5, cy, "right", "center"
+        elif override == "right":
+            lx, ly, ha, va = maxx + 2.5, cy, "left", "center"
+        elif not _band_hits(others, cx - halfw, cx + halfw, ly_above):
             lx, ly, ha, va = cx, ly_above, "center", "bottom"
         elif not _band_hits(others, maxx + 2.5, maxx + 2.5 + 2 * halfw, cy):
             lx, ly, ha, va = maxx + 2.5, cy, "left", "center"
