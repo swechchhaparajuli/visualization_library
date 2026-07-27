@@ -221,17 +221,18 @@ def _primary_set(fracs: dict, tol: float = 0.05) -> set:
     return {d for d, f in fracs.items() if f > 0 and smax - f <= tol}
 
 
-def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size, seed):
-    """Compose a little diorama across a pie sector (clipped to the country).
+def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size, seed, spacing=None):
+    """Compose a little diorama across a pie sector (clipped to ``rings``).
 
     Points in the sector are populated with a mix of the driver's flat vector
     ``scene`` motifs at varied sizes and jittered positions, drawn
     back-to-front for depth. Motif count scales with area. ``seed`` makes the
-    layout deterministic per country; ``size`` is the base motif height in
-    data units.
+    layout deterministic; ``size`` is the base motif height in data units;
+    ``spacing`` overrides the grid spacing (default scales with ``radius``).
     """
     rng = np.random.RandomState(seed)
-    spacing = min(6.5, max(2.6, radius * 0.20))
+    if spacing is None:
+        spacing = min(6.5, max(2.6, radius * 0.20))
     span = frac * 360.0
 
     def _emit(x, y):
@@ -453,4 +454,67 @@ def plot_top_countries_map(
             _motifs.MOTIF[key](ax, x, y - 4.5, 10.0, ax.transData, 7)
         ax.text(x + 9, y, d, ha="left", va="center", fontsize=10.5,
                 color=chrome["text_secondary"], zorder=7)
+    return ax
+
+
+def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False):
+    """Pie chart of loss by driver; each slice filled with the driver's motifs.
+
+    Each wedge takes the driver's themed biome color and is filled with a
+    diorama of that driver's motifs (the same set used on the map), with the
+    slice size proportional to the driver's share. Name + percentage are
+    labeled outside each slice.
+    """
+    chrome = palette.chrome(dark=dark)
+    theme = palette.driver_theme(dark=dark)
+    if ax is None:
+        _, ax = plt.subplots(figsize=(10, 9))
+
+    totals = _data.driver_totals(drivers, country=country, year_range=year_range)
+    order = [d for d in palette.DRIVER_ORDER if d in totals.index and totals[d] > 0]
+    total = float(totals.sum()) or 1.0
+
+    R = 1.0
+    ang = np.linspace(0, 2 * np.pi, 181)
+    circle = [np.column_stack([R * np.cos(ang), R * np.sin(ang)])]
+
+    # First pass: draw wedges + motif dioramas.
+    mids, labels = [], []
+    start = 90.0
+    for d in order:
+        frac = totals[d] / total
+        end = start - frac * 360.0
+        ax.add_patch(Wedge((0, 0), R, end, start, facecolor=_lerp(_rgb(theme[d]), (1, 1, 1), 0.12),
+                           edgecolor=chrome["surface"], linewidth=1.6, zorder=2))
+        scene = _scene(d)
+        if scene:
+            seed = zlib.crc32(d.encode()) & 0xFFFFFFFF
+            _diorama(ax, scene, 0.0, 0.0, R, start, frac, circle, ax.transData,
+                     size=0.16, seed=seed, spacing=0.22)
+        mids.append(np.radians((start + end) / 2.0))
+        labels.append((d, frac))
+        start = end
+
+    # Second pass: outside labels with leaders, spread evenly down each side.
+    right_items = [(m, d, f) for m, (d, f) in zip(mids, labels) if np.cos(m) >= 0]
+    left_items = [(m, d, f) for m, (d, f) in zip(mids, labels) if np.cos(m) < 0]
+    for items, right in ((right_items, True), (left_items, False)):
+        items = sorted(items, key=lambda it: np.sin(it[0]), reverse=True)
+        n = len(items)
+        ys = np.linspace(1.2, -1.2, n) if n > 1 else [np.sin(items[0][0]) if items else 0.0]
+        lx = 1.34 if right else -1.34
+        for (mid, d, frac), ly in zip(items, ys):
+            ax.annotate(f"{d}  {frac * 100:.0f}%", xy=(0.92 * R * np.cos(mid), 0.92 * R * np.sin(mid)),
+                        xytext=(lx, ly), ha="left" if right else "right", va="center",
+                        fontsize=10.5, color=chrome["text"], fontweight="bold",
+                        arrowprops=dict(arrowstyle="-", color=chrome["muted"], lw=0.8))
+
+    ax.set_xlim(-2.9, 2.9)
+    ax.set_ylim(-1.5, 1.7)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    rng = f" ({year_range[0]}–{year_range[1]})" if year_range else ""
+    scope = country if country else "Global"
+    ax.set_title(f"{scope} primary-forest loss by driver{rng}",
+                 color=chrome["text"], fontweight="bold", fontsize=15, pad=16)
     return ax

@@ -173,6 +173,9 @@ def test_plot_functions_return_axes(tcl, drivers, dark):
     assert ax.get_xlabel() != ""
     ax2 = plots.plot_top_countries_drivers(drivers, n=1, dark=dark)
     assert ax2.get_legend() is not None  # driver legend present
+    ax3 = maps.plot_driver_pie(drivers, dark=dark)
+    texts = {t.get_text() for t in ax3.texts}
+    assert any("Permanent agriculture" in t for t in texts)  # slice labeled
 
 
 def test_fmt_ha_is_compact():
