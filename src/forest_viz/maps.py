@@ -222,7 +222,7 @@ def _primary_set(fracs: dict, tol: float = 0.05) -> set:
 
 
 def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size, seed,
-             spacing=None, y_scale=1.0):
+             spacing=None, y_scale=1.0, y_offset=0.0, z0=5.4):
     """Compose a little diorama across a pie sector (clipped to ``rings``).
 
     Points in the sector are populated with a mix of the driver's flat vector
@@ -269,7 +269,7 @@ def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size,
     # y_scale < 1 places motifs on a vertically-squashed (isometric) surface
     # while they are still drawn upright.
     for i, (y, x, s, key) in enumerate(sorted(placed, key=lambda t: -t[0])):
-        _motifs.MOTIF[key](ax, x, y * y_scale, s, transform, 5.4 + i * 0.003)
+        _motifs.MOTIF[key](ax, x, y * y_scale + y_offset, s, transform, z0 + i * 0.003)
 
 
 def _compound(rings: list) -> Path:
@@ -479,40 +479,42 @@ def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False,
     total = float(totals.sum()) or 1.0
 
     R = 1.0
-    squash = mtransforms.Affine2D().scale(1.0, tilt) + ax.transData
     ang = np.linspace(0, 2 * np.pi, 181)
     circle = [np.column_stack([R * np.cos(ang), R * np.sin(ang)])]  # flat, for clipping
 
-    # Slice angles.
+    # Slice angles + a distinct extruded height per slice (taller = bigger share).
     spans, start = [], 90.0
+    fmax = max((totals[d] / total for d in order), default=1.0)
     for d in order:
         frac = totals[d] / total
-        spans.append((d, frac, start, start - frac * 360.0))
+        h = depth * (0.5 + 1.6 * frac / fmax)  # height varies by share
+        spans.append((d, frac, start, start - frac * 360.0, h))
         start -= frac * 360.0
 
-    # 1) Extruded front rim walls (darker), per slice — only the front/lower arc.
-    for d, frac, a0, a1 in spans:
-        ths = np.linspace(a0, a1, 60)
-        ths = ths[np.sin(np.radians(ths)) < 0.03]  # front-facing half only
-        if len(ths) < 2:
-            continue
-        top = np.column_stack([R * np.cos(np.radians(ths)), R * np.sin(np.radians(ths)) * tilt])
-        bot = top - [0, depth]
-        wall = np.vstack([top, bot[::-1]])
-        ax.add_patch(Polygon(wall, closed=True, facecolor=_darken(theme[d], 0.6),
-                             edgecolor="none", zorder=1.5))
-
-    # 2) Slice top faces (elliptical wedges) + 3) motif dioramas.
+    # Draw back-to-front (slices with higher mid-latitude are farther away) so
+    # nearer/taller slices overlap correctly; each slice gets its own z band.
+    ordered = sorted(enumerate(spans), key=lambda t: -np.sin(np.radians((t[1][2] + t[1][3]) / 2.0)))
     mids = []
-    for d, frac, a0, a1 in spans:
+    for zi, (_, (d, frac, a0, a1, h)) in enumerate(ordered):
+        zbase = 2 + zi * 0.5
+        # Front rim wall: front-facing arc, from base plane up to this slice's height.
+        ths = np.linspace(a0, a1, 60)
+        ths = ths[np.sin(np.radians(ths)) < 0.03]
+        if len(ths) >= 2:
+            top = np.column_stack([R * np.cos(np.radians(ths)), R * np.sin(np.radians(ths)) * tilt + h])
+            base = top - [0, h]
+            ax.add_patch(Polygon(np.vstack([top, base[::-1]]), closed=True,
+                                 facecolor=_darken(theme[d], 0.6), edgecolor="none", zorder=zbase))
+        # Top face, lifted by h.
+        lift = mtransforms.Affine2D().scale(1.0, tilt).translate(0, h) + ax.transData
         ax.add_patch(Wedge((0, 0), R, a1, a0, facecolor=_lerp(_rgb(theme[d]), (1, 1, 1), 0.12),
-                           edgecolor=chrome["surface"], linewidth=1.6, transform=squash, zorder=2))
+                           edgecolor="none", transform=lift, zorder=zbase + 0.1))
         scene = _scene(d)
         if scene:
             seed = zlib.crc32(d.encode()) & 0xFFFFFFFF
-            _diorama(ax, scene, 0.0, 0.0, R, a0, frac, circle, ax.transData,
-                     size=0.15, seed=seed, spacing=0.22, y_scale=tilt)
-        mids.append((np.radians((a0 + a1) / 2.0), d, frac))
+            _diorama(ax, scene, 0.0, 0.0, R, a0, frac, circle, ax.transData, size=0.15,
+                     seed=seed, spacing=0.22, y_scale=tilt, y_offset=h, z0=zbase + 0.2)
+        mids.append((np.radians((a0 + a1) / 2.0), d, frac, h))
 
     # 4) Outside labels with leaders, spread evenly down each side.
     right = [it for it in mids if np.cos(it[0]) >= 0]
@@ -520,11 +522,11 @@ def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False,
     for items, is_right in ((right, True), (left, False)):
         items = sorted(items, key=lambda it: np.sin(it[0]), reverse=True)
         n = len(items)
-        ys = np.linspace(0.95, -0.95, n) if n > 1 else [np.sin(items[0][0]) * tilt if items else 0.0]
+        ys = np.linspace(1.05, -0.95, n) if n > 1 else [np.sin(items[0][0]) * tilt if items else 0.0]
         lx = 1.4 if is_right else -1.4
-        for (mid, d, frac), ly in zip(items, ys):
+        for (mid, d, frac, h), ly in zip(items, ys):
             ax.annotate(f"{d}  {frac * 100:.0f}%",
-                        xy=(0.92 * R * np.cos(mid), 0.92 * R * np.sin(mid) * tilt),
+                        xy=(0.92 * R * np.cos(mid), 0.92 * R * np.sin(mid) * tilt + h),
                         xytext=(lx, ly), ha="left" if is_right else "right", va="center",
                         fontsize=10.5, color=chrome["text"], fontweight="bold",
                         arrowprops=dict(arrowstyle="-", color=chrome["muted"], lw=0.8))
