@@ -176,6 +176,8 @@ def test_plot_functions_return_axes(tcl, drivers, dark):
     ax3 = maps.plot_driver_pie(drivers, dark=dark)
     texts = {t.get_text() for t in ax3.texts}
     assert any("Permanent agriculture" in t for t in texts)  # slice labeled
+    ax4 = maps.plot_drivers_over_time_3d(drivers, dark=dark)
+    assert any("Permanent agriculture" in t.get_text() for t in ax4.texts)
 
 
 def test_fmt_ha_is_compact():

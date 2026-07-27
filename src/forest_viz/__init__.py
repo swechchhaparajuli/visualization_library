@@ -11,7 +11,12 @@
 """
 
 from forest_viz import data, maps, palette, plots, theme
-from forest_viz.maps import load_country_geometry, plot_driver_pie, plot_top_countries_map
+from forest_viz.maps import (
+    load_country_geometry,
+    plot_driver_pie,
+    plot_drivers_over_time_3d,
+    plot_top_countries_map,
+)
 from forest_viz.plots import (
     plot_driver_composition,
     plot_drivers_over_time,
@@ -35,6 +40,7 @@ __all__ = [
     "plot_driver_composition",
     "plot_top_countries_map",
     "plot_driver_pie",
+    "plot_drivers_over_time_3d",
     "load_country_geometry",
 ]
 __version__ = "0.1.0"

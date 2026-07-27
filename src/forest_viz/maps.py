@@ -574,3 +574,67 @@ def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False,
     ax.set_title(f"{scope} primary-forest loss by driver{rng}",
                  color=chrome["text"], fontweight="bold", fontsize=15, pad=14)
     return ax
+
+
+def _bar3d(ax, x, y, w, h, dx, dy, color, edge, z):
+    """One isometric bar box: shaded top, side, and front faces."""
+    top = [(x, y + h), (x + w, y + h), (x + w + dx, y + h + dy), (x + dx, y + h + dy)]
+    side = [(x + w, y), (x + w + dx, y + dy), (x + w + dx, y + h + dy), (x + w, y + h)]
+    front = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    ax.add_patch(Polygon(top, closed=True, facecolor=_lerp(_rgb(color), (1, 1, 1), 0.28),
+                         edgecolor=edge, linewidth=0.3, zorder=z))
+    ax.add_patch(Polygon(side, closed=True, facecolor=_darken(color, 0.72),
+                         edgecolor=edge, linewidth=0.3, zorder=z))
+    ax.add_patch(Polygon(front, closed=True, facecolor=color, edgecolor=edge,
+                         linewidth=0.3, zorder=z))
+
+
+def plot_drivers_over_time_3d(drivers, country=None, ax=None, dark=False):
+    """Loss by driver over time as layered isometric 3-D bar graphs.
+
+    Each driver is its own row of 3-D bars (one per year), and the rows are
+    stepped back/up so they overlap — replacing the flat stacked area with a
+    stack of little 3-D bar charts. Bar heights share one scale so drivers
+    stay comparable.
+    """
+    chrome = palette.chrome(dark=dark)
+    theme = palette.driver_theme(dark=dark)
+    if ax is None:
+        _, ax = plt.subplots(figsize=(14, 9))
+
+    wide = _data.drivers_by_year(drivers, country=country)
+    order = [d for d in palette.DRIVER_ORDER if d in wide.columns]
+    years = list(wide.index)
+    gmax = float(np.nanmax(wide.values)) or 1.0
+
+    xstep, w, dx, dy = 1.0, 0.72, 0.32, 0.46
+    layer_gap, layer_dx, hmax = 2.4, 0.5, 5.6
+    n = len(order)
+
+    # Back (top) row first, front (bottom) row last, so nearer rows overlap.
+    for r in range(n - 1, -1, -1):
+        d = order[r]
+        by, bx0, color = r * layer_gap, r * layer_dx, theme[d]
+        zlayer = (n - r) * 1000
+        for xi, yr in enumerate(years):
+            val = float(wide.loc[yr, d])
+            if val <= 0:
+                continue
+            _bar3d(ax, bx0 + xi * xstep, by, w, val / gmax * hmax, dx, dy, color,
+                   chrome["surface"], zlayer + (len(years) - xi))
+        ax.text(-0.9, by + 0.25, d, ha="right", va="bottom", fontsize=10.5,
+                color=chrome["text"], fontweight="bold", zorder=zlayer + 9999)
+
+    for xi, yr in enumerate(years):  # year ticks along the front baseline
+        if yr % 5 == 0:
+            ax.text(xi * xstep + w / 2, -0.7, str(yr), ha="center", va="top",
+                    fontsize=9, color=chrome["text_secondary"])
+
+    ax.set_xlim(-9, len(years) * xstep + n * layer_dx + 2)
+    ax.set_ylim(-1.8, n * layer_gap + hmax + 1)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    scope = country if country else "Global"
+    ax.set_title(f"{scope} primary-forest loss by driver over time",
+                 color=chrome["text"], fontweight="bold", fontsize=15, pad=12)
+    return ax

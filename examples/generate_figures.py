@@ -46,7 +46,7 @@ def main(workbook: str) -> None:
         "top_countries_by_driver.png": plots.plot_top_countries_drivers(
             all_drivers, n=15, year_range=(2001, 2024)
         ),
-        "primary_drivers_over_time.png": plots.plot_drivers_over_time(drivers),
+        "primary_drivers_over_time.png": maps.plot_drivers_over_time_3d(drivers),
         "primary_driver_pie.png": maps.plot_driver_pie(drivers, year_range=(2002, 2024)),
     }
     if GEOJSON.exists():
