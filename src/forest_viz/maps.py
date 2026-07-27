@@ -590,12 +590,12 @@ def _bar3d(ax, x, y, w, h, dx, dy, color, edge, z):
 
 
 def plot_drivers_over_time_3d(drivers, country=None, ax=None, dark=False):
-    """Loss by driver over time as layered isometric 3-D bar graphs.
+    """Loss by driver over time as overlapping isometric 3-D bar graphs.
 
-    Each driver is its own row of 3-D bars (one per year), and the rows are
-    stepped back/up so they overlap — replacing the flat stacked area with a
-    stack of little 3-D bar charts. Bar heights share one scale so drivers
-    stay comparable.
+    Years run along x, drivers recede along the depth axis, and every bar
+    rises from a common floor so bar heights encode tree-cover loss on a
+    single ha scale (matching the original stacked area), read off the ha
+    axis at the left. Nearer driver rows overlap the ones behind.
     """
     chrome = palette.chrome(dark=dark)
     theme = palette.driver_theme(dark=dark)
@@ -604,34 +604,59 @@ def plot_drivers_over_time_3d(drivers, country=None, ax=None, dark=False):
 
     wide = _data.drivers_by_year(drivers, country=country)
     order = [d for d in palette.DRIVER_ORDER if d in wide.columns]
+    # Smallest driver in front, largest at the back, so no tall row hides a
+    # shorter one and every driver stays visible.
+    rows = sorted(order, key=lambda d: float(np.nansum(wide[d].values)))
     years = list(wide.index)
     gmax = float(np.nanmax(wide.values)) or 1.0
 
     xstep, w, dx, dy = 1.0, 0.72, 0.32, 0.46
-    layer_gap, layer_dx, hmax = 2.4, 0.5, 5.6
-    n = len(order)
+    dpx, dpy = 0.6, 0.72            # per-driver depth recede (up-right)
+    yscale = 6.0 / gmax             # ha -> data units (shared by all bars)
+    n = len(rows)
+    n_years = len(years)
 
-    # Back (top) row first, front (bottom) row last, so nearer rows overlap.
+    def _fmt(v):
+        if v >= 1e6:
+            return f"{v / 1e6:g}M"
+        if v >= 1e3:
+            return f"{v / 1e3:g}k"
+        return f"{v:g}"
+
+    # ha axis at the front-left (common floor at y = 0).
+    ax.plot([-1.6, -1.6], [0, gmax * yscale], color=chrome["baseline"], lw=1.0, zorder=6)
+    step = 10 ** int(np.floor(np.log10(gmax)))
+    v = 0.0
+    while v <= gmax + 1e-9:
+        y = v * yscale
+        ax.plot([-1.9, -1.6], [y, y], color=chrome["baseline"], lw=1.0, zorder=6)
+        ax.plot([-1.6, n_years * xstep], [y, y], color=chrome["grid"], lw=0.6, zorder=0.4)
+        ax.text(-2.1, y, _fmt(v), ha="right", va="center", fontsize=9, color=chrome["text_secondary"])
+        v += step
+    ax.text(-4.6, gmax * yscale / 2, "Tree cover loss (ha)", rotation=90, ha="center",
+            va="center", fontsize=10, color=chrome["text_secondary"])
+
+    # Draw back (far) rows first so nearer driver rows overlap them.
     for r in range(n - 1, -1, -1):
-        d = order[r]
-        by, bx0, color = r * layer_gap, r * layer_dx, theme[d]
+        d = rows[r]
+        bx, byb, color = r * dpx, r * dpy, theme[d]
         zlayer = (n - r) * 1000
         for xi, yr in enumerate(years):
             val = float(wide.loc[yr, d])
             if val <= 0:
                 continue
-            _bar3d(ax, bx0 + xi * xstep, by, w, val / gmax * hmax, dx, dy, color,
-                   chrome["surface"], zlayer + (len(years) - xi))
-        ax.text(-0.9, by + 0.25, d, ha="right", va="bottom", fontsize=10.5,
-                color=chrome["text"], fontweight="bold", zorder=zlayer + 9999)
+            _bar3d(ax, bx + xi * xstep, byb, w, val * yscale, dx, dy, color,
+                   chrome["surface"], zlayer + (n_years - xi))
+        ax.text(bx + n_years * xstep + 0.4, byb + 0.2, d, ha="left", va="bottom",
+                fontsize=9.5, color=chrome["text"], fontweight="bold", zorder=zlayer + 9999)
 
     for xi, yr in enumerate(years):  # year ticks along the front baseline
         if yr % 5 == 0:
             ax.text(xi * xstep + w / 2, -0.7, str(yr), ha="center", va="top",
                     fontsize=9, color=chrome["text_secondary"])
 
-    ax.set_xlim(-9, len(years) * xstep + n * layer_dx + 2)
-    ax.set_ylim(-1.8, n * layer_gap + hmax + 1)
+    ax.set_xlim(-5, n_years * xstep + n * dpx + 9)
+    ax.set_ylim(-1.8, n * dpy + gmax * yscale + 1)
     ax.set_aspect("equal")
     ax.axis("off")
     scope = country if country else "Global"
