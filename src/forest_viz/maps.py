@@ -22,7 +22,7 @@ import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
-from matplotlib.patches import PathPatch, Polygon, Rectangle, Wedge
+from matplotlib.patches import Ellipse, PathPatch, Polygon, Rectangle, Wedge
 from matplotlib.path import Path
 
 from forest_viz import data as _data
@@ -482,14 +482,21 @@ def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False,
     ang = np.linspace(0, 2 * np.pi, 181)
     circle = [np.column_stack([R * np.cos(ang), R * np.sin(ang)])]  # flat, for clipping
 
+    def rim(a):  # base-plane rim point at angle a (degrees)
+        return np.array([R * np.cos(np.radians(a)), R * np.sin(np.radians(a)) * tilt])
+
     # Slice angles + a distinct extruded height per slice (taller = bigger share).
     spans, start = [], 90.0
     fmax = max((totals[d] / total for d in order), default=1.0)
     for d in order:
         frac = totals[d] / total
-        h = depth * (0.5 + 1.6 * frac / fmax)  # height varies by share
+        h = depth * (0.6 + 1.1 * frac / fmax)  # height varies by share
         spans.append((d, frac, start, start - frac * 360.0, h))
         start -= frac * 360.0
+
+    # Soft ground shadow under the disc.
+    ax.add_patch(Ellipse((0.06, -0.06), 2 * R * 1.02, 2 * R * tilt * 1.02, facecolor="#1c1c1a",
+                         alpha=0.12, edgecolor="none", zorder=0.5))
 
     # Draw back-to-front (slices with higher mid-latitude are farther away) so
     # nearer/taller slices overlap correctly; each slice gets its own z band.
@@ -497,14 +504,27 @@ def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False,
     mids = []
     for zi, (_, (d, frac, a0, a1, h)) in enumerate(ordered):
         zbase = 2 + zi * 0.5
-        # Front rim wall: front-facing arc, from base plane up to this slice's height.
+        up = np.array([0, h])
+        # Radial cut walls (the straight sides), shaded darker; skip clearly
+        # back-facing edges. Left/right edges get slightly different shading.
+        for edge, shade in ((a0, 0.52), (a1, 0.44)):
+            if np.sin(np.radians(edge)) < 0.35:
+                base_r = rim(edge)
+                quad = [(0, 0), base_r, base_r + up, (0, h)]
+                ax.add_patch(Polygon(quad, closed=True, facecolor=_darken(theme[d], shade),
+                                     edgecolor="none", zorder=zbase))
+        # Outer arc wall: front-facing arc, base plane up to this slice's height.
         ths = np.linspace(a0, a1, 60)
         ths = ths[np.sin(np.radians(ths)) < 0.03]
         if len(ths) >= 2:
             top = np.column_stack([R * np.cos(np.radians(ths)), R * np.sin(np.radians(ths)) * tilt + h])
-            base = top - [0, h]
+            base = top - up
             ax.add_patch(Polygon(np.vstack([top, base[::-1]]), closed=True,
-                                 facecolor=_darken(theme[d], 0.6), edgecolor="none", zorder=zbase))
+                                 facecolor=_darken(theme[d], 0.6), edgecolor="none", zorder=zbase + 0.05))
+            # Inner shadow: darker band along the bottom of the arc wall.
+            mid_band = (top + base) / 2
+            ax.add_patch(Polygon(np.vstack([mid_band, base[::-1]]), closed=True,
+                                 facecolor="#000000", alpha=0.16, edgecolor="none", zorder=zbase + 0.06))
         # Top face, lifted by h.
         lift = mtransforms.Affine2D().scale(1.0, tilt).translate(0, h) + ax.transData
         ax.add_patch(Wedge((0, 0), R, a1, a0, facecolor=_lerp(_rgb(theme[d]), (1, 1, 1), 0.12),
