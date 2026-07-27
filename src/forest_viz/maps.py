@@ -274,7 +274,6 @@ def plot_top_countries_map(
     dark: bool = False,
     enlarge: float = 1.35,
     gap: float = 3.5,
-    label_min_share: float = 0.12,
     depth: float = 15.0,
     island_min_frac: float = 0.01,
     icon_scale: float = 1.0,
@@ -382,8 +381,8 @@ def plot_top_countries_map(
             if scene:
                 seed = zlib.crc32(f"{country}:{drv}".encode()) & 0xFFFFFFFF
                 _diorama(ax, scene, cx, cy, radius, start, frac, rings, top_t, icon_size, seed)
-            # Percentage label inside the country, along the wedge mid-angle.
-            if frac >= label_min_share:
+            # Percentage label for the primary driver only, inside the country.
+            if drv in primary:
                 mid = np.radians((start + end) / 2.0)
                 pt = None
                 for rr in (0.6, 0.72, 0.46, 0.82, 0.34):
