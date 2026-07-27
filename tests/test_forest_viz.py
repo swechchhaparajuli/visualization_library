@@ -150,7 +150,10 @@ def test_map_plots_with_synthetic_geometry():
     )
     theme.apply_theme()
     ax = maps.plot_top_countries_map(drivers, geometry, n=2)
-    assert ax.get_legend() is not None
+    # the motif legend draws every driver's name (primary or not)
+    texts = {t.get_text() for t in ax.texts}
+    assert palette.DRIVER_ORDER[0] in texts
+    assert "Hard commodities" in texts  # a driver that is never primary here
 
 
 def test_palette_covers_all_drivers():
