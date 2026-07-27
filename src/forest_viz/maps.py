@@ -33,6 +33,18 @@ from forest_viz import palette
 # SET of flat vector motifs (see forest_viz.motifs), not one repeated icon.
 DRIVER_SCENE = _motifs.SCENES
 
+# Small story decorations per driver for the over-time pictograph:
+# (func, x-fraction of row, y-fraction of band, size, color).
+_STORY = {
+    "Permanent agriculture": [("sun", 0.06, 0.95, 1.4, "#f2c53d")],
+    "Shifting cultivation": [("cloud", 0.35, 0.9, 1.0, "#b9bec6"), ("cloud", 0.72, 1.0, 0.9, "#b9bec6")],
+    "Wildfire": [("cloud", 0.45, 0.95, 1.3, "#57534c"), ("cloud", 0.78, 1.05, 1.0, "#6d685f")],
+    "Logging": [("cloud", 0.5, 0.95, 0.9, "#cfd3d9")],
+    "Other natural disturbances": [("cloud", 0.35, 0.95, 1.2, "#59647a"), ("cloud", 0.7, 1.05, 1.0, "#59647a")],
+    "Hard commodities": [("cloud", 0.5, 0.95, 1.0, "#8b8f96")],
+    "Settlements & Infrastructure": [("cloud", 0.62, 0.95, 0.9, "#cfd3d9")],
+}
+
 # One representative motif per driver, for the legend key.
 _LEGEND_MOTIF = {
     "Permanent agriculture": "crop",
@@ -611,7 +623,7 @@ def plot_drivers_over_time_3d(drivers, country=None, ax=None, dark=False):
     gmax = float(np.nanmax(wide.values)) or 1.0
 
     xstep, w, dx, dy = 1.0, 0.72, 0.32, 0.46
-    dpx, dpy = 0.6, 0.72            # per-driver depth recede (up-right)
+    dpx, dpy = 0.6, 0.6             # per-driver depth recede (up-right)
     yscale = 6.0 / gmax             # ha -> data units (shared by all bars)
     n = len(rows)
     n_years = len(years)
@@ -636,33 +648,48 @@ def plot_drivers_over_time_3d(drivers, country=None, ax=None, dark=False):
     ax.text(-4.6, gmax * yscale / 2, "Tree cover loss (ha)", rotation=90, ha="center",
             va="center", fontsize=10, color=chrome["text_secondary"])
 
-    # Each year's value is a column of the driver's motifs stacked to the bar
-    # height. Draw back (far) rows first so nearer rows overlap them.
-    msize, step = 1.5, 1.25
-    for r in range(n - 1, -1, -1):
+    msize, step = 1.5, 0.66
+    geom = []  # per row: (r, d, bx, byb, x0, x1, vals, band_h)
+    for r in range(n):
         d = rows[r]
         bx, byb = r * dpx, r * dpy
+        x0, x1 = bx - 0.5, bx + n_years * xstep + 0.7
+        vals = [float(wide.loc[yr, d]) for yr in years]
+        band_h = max(vals) * yscale + msize * 0.7
+        geom.append((r, d, bx, byb, x0, x1, vals, band_h))
+
+    # Pass 1 (back-to-front): tinted row backgrounds, ground, story details —
+    # all behind the motifs so nothing covers a taller row's imagery.
+    for r, d, bx, byb, x0, x1, vals, band_h in reversed(geom):
+        zbg = -100 + (n - r)
+        ax.add_patch(Rectangle((x0, byb - 0.3), x1 - x0, band_h + 0.3,
+                               facecolor=_lerp(_rgb(theme[d]), (1, 1, 1), 0.6),
+                               edgecolor="none", zorder=zbg))
+        ax.add_patch(Rectangle((x0, byb - 0.3), x1 - x0, 0.55,
+                               facecolor=_darken(theme[d], 0.82), edgecolor="none", zorder=zbg + 0.1))
+        if d == "Wildfire":  # charred ground under the wildfire row
+            ax.add_patch(Rectangle((x0, byb - 0.3), x1 - x0, 0.7,
+                                   facecolor="#26221c", alpha=0.85, edgecolor="none", zorder=zbg + 0.2))
+        for fn, fx, fy, fsz, col in _STORY.get(d, []):
+            getattr(_motifs, fn)(ax, x0 + fx * (x1 - x0), byb + fy * band_h, fsz,
+                                 ax.transData, zbg + 0.3, col)
+
+    # Pass 2 (back-to-front): dense motif columns on top of every background.
+    for r, d, bx, byb, x0, x1, vals, band_h in reversed(geom):
         zlayer = (n - r) * 1000
         keys = _motifs.TIMESERIES.get(d) or [_LEGEND_MOTIF.get(d, "crop")]
-        if d == "Wildfire":  # charred ground under the wildfire row
-            x0, x1 = bx - 0.4, bx + n_years * xstep + 0.6
-            ax.add_patch(Polygon([(x0, byb), (x1, byb), (x1 + dx, byb + dy), (x0 + dx, byb + dy)],
-                                 closed=True, facecolor="#26221c", alpha=0.5, edgecolor="none",
-                                 zorder=zlayer - 0.5))
-        for xi, yr in enumerate(years):
-            val = float(wide.loc[yr, d])
+        for xi, val in enumerate(vals):
             if val <= 0:
                 continue
-            h = val * yscale
             cx = bx + xi * xstep + w / 2
-            rng = np.random.RandomState(zlib.crc32(f"{d}{yr}".encode()) & 0xFFFFFFFF)
-            for i in range(max(1, int(round(h / step)))):
+            rng = np.random.RandomState(zlib.crc32(f"{d}{years[xi]}".encode()) & 0xFFFFFFFF)
+            for i in range(max(1, int(round(val * yscale / step)))):
                 key = keys[rng.randint(len(keys))]
-                jx = cx + (rng.rand() - 0.5) * 0.3
+                jx = cx + (rng.rand() - 0.5) * 0.45
                 sz = msize * (0.9 + rng.rand() * 0.25)
                 _motifs.MOTIF[key](ax, jx, byb + i * step, sz, ax.transData,
                                    zlayer + (n_years - xi) + i * 0.02)
-        ax.text(bx + n_years * xstep + 1.0, byb + 0.2, d, ha="left", va="bottom",
+        ax.text(bx + n_years * xstep + 1.1, byb + 0.2, d, ha="left", va="bottom",
                 fontsize=9.5, color=chrome["text"], fontweight="bold", zorder=zlayer + 9999)
 
     for xi, yr in enumerate(years):  # year ticks along the front baseline

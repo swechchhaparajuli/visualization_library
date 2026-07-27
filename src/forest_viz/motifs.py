@@ -260,6 +260,22 @@ def flood(ax, x, y, s, t, z):
         _poly(ax, x, y, np.vstack([top, bot]), s, col, t, z + 0.01 + i * 0.01)
 
 
+def sun(ax, x, y, s, t, z, color="#f2c53d"):
+    """A small sun with rays (decoration; (x, y) is the center)."""
+    for k in range(8):
+        a = np.radians(k * 45)
+        _seg(ax, x, y, (0.3 * np.cos(a), 0.3 * np.sin(a)),
+             (0.5 * np.cos(a), 0.5 * np.sin(a)), 0.05, s, color, t, z)
+    ax.add_patch(Circle((x, y), 0.26 * s, facecolor=color, edgecolor="none", transform=t, zorder=z + 0.01))
+
+
+def cloud(ax, x, y, s, t, z, color="#c9cdd4"):
+    """A puffy cloud / smoke puff (decoration; (x, y) is the center)."""
+    for ox, oy, r in ((-0.24, 0, 0.19), (0.24, 0, 0.19), (0.0, 0.08, 0.26), (-0.04, -0.04, 0.17)):
+        ax.add_patch(Ellipse((x + ox * s, y + oy * s), r * 2 * s, r * 1.55 * s,
+                            facecolor=color, edgecolor="none", transform=t, zorder=z))
+
+
 MOTIF = {
     "evergreen": evergreen, "round_tree": round_tree, "flame": flame,
     "burnt_tree": burnt_tree, "burnt_snag": burnt_snag,
