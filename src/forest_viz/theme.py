@@ -7,9 +7,22 @@ dark surface.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import matplotlib as mpl
+from matplotlib import font_manager as _fm
 
 from forest_viz import palette
+
+# Register the bundled Helvetica-equivalent (Nimbus Sans) once.
+_FONT_DIR = Path(__file__).with_name("assets") / "fonts"
+_FONT_FAMILY = "sans-serif"
+for _f in sorted(_FONT_DIR.glob("*.otf")):
+    try:
+        _fm.fontManager.addfont(str(_f))
+        _FONT_FAMILY = _fm.FontProperties(fname=str(_f)).get_name()  # "Nimbus Sans"
+    except Exception:
+        pass
 
 
 def apply_theme(dark: bool = False) -> None:
@@ -20,8 +33,11 @@ def apply_theme(dark: bool = False) -> None:
             "figure.facecolor": c["surface"],
             "axes.facecolor": c["surface"],
             "savefig.facecolor": c["surface"],
+            # Helvetica; the bundled Nimbus Sans is a metric-identical clone
+            # used when Helvetica itself isn't installed.
             "font.family": "sans-serif",
-            "font.sans-serif": ["DejaVu Sans", "Segoe UI", "Helvetica", "Arial"],
+            "font.sans-serif": ["Helvetica", _FONT_FAMILY, "Nimbus Sans", "Arial",
+                                 "Liberation Sans", "DejaVu Sans"],
             "font.size": 11,
             "text.color": c["text"],
             "axes.edgecolor": c["baseline"],
