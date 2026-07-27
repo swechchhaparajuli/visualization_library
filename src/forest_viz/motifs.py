@@ -20,6 +20,8 @@ _C = {
     "leaf": "#3f9e5e", "stem": "#4f7a37",
     "barn": "#a5493a", "roof": "#4a3324",
     "char": "#1b1813",  # charred, near-black
+    "steel": "#41464c", "gold": "#e6b93a", "gold_dark": "#bd8f24",
+    "ore": "#6c7075", "copper": "#c67a3e", "gold_speck": "#e8c94a",
 }
 _SHADOW = "#1c2b22"
 
@@ -136,10 +138,53 @@ def barn(ax, x, y, s, t, z):
     _poly(ax, x, y, [(-0.08, 0), (0.08, 0), (0.08, 0.24), (-0.08, 0.24)], s, _C["roof"], t, z + 0.03)
 
 
+def oil_derrick(ax, x, y, s, t, z):
+    """A lattice oil derrick / rig tower."""
+    _shadow(ax, x, y, 0.5, s, t, z)
+    c = _C["steel"]
+    _poly(ax, x, y, [(-0.28, 0), (0.28, 0), (0.24, 0.08), (-0.24, 0.08)], s, c, t, z + 0.01)
+    lo, hi = 0.06, 0.95
+    lx = lambda yy: -0.2 + (-0.05 + 0.2) * (yy - lo) / (hi - lo)
+    rx = lambda yy: 0.2 + (0.05 - 0.2) * (yy - lo) / (hi - lo)
+    _seg(ax, x, y, (-0.2, lo), (-0.05, hi), 0.028, s, c, t, z + 0.02)
+    _seg(ax, x, y, (0.2, lo), (0.05, hi), 0.028, s, c, t, z + 0.02)
+    for yy in (0.3, 0.52, 0.74):
+        _seg(ax, x, y, (lx(yy), yy), (rx(yy), yy), 0.018, s, c, t, z + 0.02)
+    _seg(ax, x, y, (-0.2, lo), (0.05, 0.52), 0.013, s, c, t, z + 0.02)
+    _seg(ax, x, y, (0.2, lo), (-0.05, 0.52), 0.013, s, c, t, z + 0.02)
+    _poly(ax, x, y, [(-0.06, 0.95), (0.06, 0.95), (0.06, 1.06), (-0.06, 1.06)], s, c, t, z + 0.03)
+
+
+def gold_bars(ax, x, y, s, t, z):
+    """A small stack of gold ingots."""
+    _shadow(ax, x, y, 0.55, s, t, z)
+    g, gd = _C["gold"], _C["gold_dark"]
+
+    def ingot(bx, by, w, h):
+        _poly(ax, x, y, [(bx - w, by), (bx + w, by), (bx + 0.7 * w, by + h), (bx - 0.7 * w, by + h)], s, g, t, z + 0.02)
+        _poly(ax, x, y, [(bx - 0.7 * w, by + h), (bx + 0.7 * w, by + h),
+                         (bx + 0.6 * w, by + h + 0.04), (bx - 0.6 * w, by + h + 0.04)], s, gd, t, z + 0.03)
+
+    ingot(-0.17, 0.0, 0.17, 0.2)
+    ingot(0.17, 0.0, 0.17, 0.2)
+    ingot(0.0, 0.22, 0.17, 0.2)
+
+
+def ore_rock(ax, x, y, s, t, z):
+    """A chunk of ore with copper/gold flecks."""
+    _shadow(ax, x, y, 0.5, s, t, z)
+    _poly(ax, x, y, [(-0.3, 0), (0.32, 0.03), (0.26, 0.36), (0.02, 0.44), (-0.26, 0.32)], s, _C["ore"], t, z + 0.01)
+    for sx, sy, col in [(-0.06, 0.22, "copper"), (0.13, 0.14, "gold_speck"),
+                        (-0.16, 0.12, "gold_speck"), (0.06, 0.32, "copper")]:
+        ax.add_patch(Circle((x + sx * s, y + sy * s), 0.045 * s, facecolor=_C[col],
+                            edgecolor="none", transform=t, zorder=z + 0.02))
+
+
 MOTIF = {
     "evergreen": evergreen, "round_tree": round_tree, "flame": flame,
     "burnt_tree": burnt_tree, "burnt_snag": burnt_snag,
     "log": log, "stump": stump, "crop": crop, "seedling": seedling, "barn": barn,
+    "oil_derrick": oil_derrick, "gold_bars": gold_bars, "ore_rock": ore_rock,
 }
 
 # Which motifs (and relative sizes) compose each driver's diorama.
@@ -150,6 +195,6 @@ SCENES = {
                  ("flame", 0.85), ("flame", 0.7), ("burnt_snag", 0.8)],
     "Logging": [("evergreen", 1.05), ("stump", 0.9), ("log", 1.0), ("stump", 0.8)],
     "Other natural disturbances": [("flame", 0.9), ("evergreen", 0.85)],
-    "Hard commodities": [("stump", 0.85), ("log", 0.95)],
+    "Hard commodities": [("oil_derrick", 1.1), ("gold_bars", 0.85), ("ore_rock", 0.95)],
     "Settlements & Infrastructure": [("barn", 1.1), ("barn", 0.9)],
 }

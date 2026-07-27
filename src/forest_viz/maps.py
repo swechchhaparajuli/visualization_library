@@ -40,7 +40,7 @@ _LEGEND_MOTIF = {
     "Wildfire": "flame",
     "Logging": "log",
     "Other natural disturbances": "evergreen",
-    "Hard commodities": "stump",
+    "Hard commodities": "oil_derrick",
     "Settlements & Infrastructure": "barn",
 }
 
