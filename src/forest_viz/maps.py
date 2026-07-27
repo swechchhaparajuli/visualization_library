@@ -22,7 +22,7 @@ import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
-from matplotlib.patches import PathPatch, Rectangle, Wedge
+from matplotlib.patches import PathPatch, Polygon, Rectangle, Wedge
 from matplotlib.path import Path
 
 from forest_viz import data as _data
@@ -221,7 +221,8 @@ def _primary_set(fracs: dict, tol: float = 0.05) -> set:
     return {d for d, f in fracs.items() if f > 0 and smax - f <= tol}
 
 
-def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size, seed, spacing=None):
+def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size, seed,
+             spacing=None, y_scale=1.0):
     """Compose a little diorama across a pie sector (clipped to ``rings``).
 
     Points in the sector are populated with a mix of the driver's flat vector
@@ -265,8 +266,10 @@ def _diorama(ax, scene, cx, cy, radius, start_deg, frac, rings, transform, size,
                 break
 
     # Back-to-front: higher latitude first, lower (nearer) drawn last / on top.
+    # y_scale < 1 places motifs on a vertically-squashed (isometric) surface
+    # while they are still drawn upright.
     for i, (y, x, s, key) in enumerate(sorted(placed, key=lambda t: -t[0])):
-        _motifs.MOTIF[key](ax, x, y, s, transform, 5.4 + i * 0.003)
+        _motifs.MOTIF[key](ax, x, y * y_scale, s, transform, 5.4 + i * 0.003)
 
 
 def _compound(rings: list) -> Path:
@@ -457,64 +460,81 @@ def plot_top_countries_map(
     return ax
 
 
-def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False):
-    """Pie chart of loss by driver; each slice filled with the driver's motifs.
+def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False,
+                    tilt=0.52, depth=0.22):
+    """Isometric pie of loss by driver; each slice filled with driver motifs.
 
-    Each wedge takes the driver's themed biome color and is filled with a
-    diorama of that driver's motifs (the same set used on the map), with the
-    slice size proportional to the driver's share. Name + percentage are
-    labeled outside each slice.
+    The pie is tilted into an ellipse and extruded into a 3-D disc: each slice
+    takes the driver's themed biome color, its front rim is a darker side
+    wall, and its surface is filled with a diorama of that driver's motifs
+    (drawn upright), sized to its share. Name + percentage label each slice.
     """
     chrome = palette.chrome(dark=dark)
     theme = palette.driver_theme(dark=dark)
     if ax is None:
-        _, ax = plt.subplots(figsize=(10, 9))
+        _, ax = plt.subplots(figsize=(10, 8))
 
     totals = _data.driver_totals(drivers, country=country, year_range=year_range)
     order = [d for d in palette.DRIVER_ORDER if d in totals.index and totals[d] > 0]
     total = float(totals.sum()) or 1.0
 
     R = 1.0
+    squash = mtransforms.Affine2D().scale(1.0, tilt) + ax.transData
     ang = np.linspace(0, 2 * np.pi, 181)
-    circle = [np.column_stack([R * np.cos(ang), R * np.sin(ang)])]
+    circle = [np.column_stack([R * np.cos(ang), R * np.sin(ang)])]  # flat, for clipping
 
-    # First pass: draw wedges + motif dioramas.
-    mids, labels = [], []
-    start = 90.0
+    # Slice angles.
+    spans, start = [], 90.0
     for d in order:
         frac = totals[d] / total
-        end = start - frac * 360.0
-        ax.add_patch(Wedge((0, 0), R, end, start, facecolor=_lerp(_rgb(theme[d]), (1, 1, 1), 0.12),
-                           edgecolor=chrome["surface"], linewidth=1.6, zorder=2))
+        spans.append((d, frac, start, start - frac * 360.0))
+        start -= frac * 360.0
+
+    # 1) Extruded front rim walls (darker), per slice — only the front/lower arc.
+    for d, frac, a0, a1 in spans:
+        ths = np.linspace(a0, a1, 60)
+        ths = ths[np.sin(np.radians(ths)) < 0.03]  # front-facing half only
+        if len(ths) < 2:
+            continue
+        top = np.column_stack([R * np.cos(np.radians(ths)), R * np.sin(np.radians(ths)) * tilt])
+        bot = top - [0, depth]
+        wall = np.vstack([top, bot[::-1]])
+        ax.add_patch(Polygon(wall, closed=True, facecolor=_darken(theme[d], 0.6),
+                             edgecolor="none", zorder=1.5))
+
+    # 2) Slice top faces (elliptical wedges) + 3) motif dioramas.
+    mids = []
+    for d, frac, a0, a1 in spans:
+        ax.add_patch(Wedge((0, 0), R, a1, a0, facecolor=_lerp(_rgb(theme[d]), (1, 1, 1), 0.12),
+                           edgecolor=chrome["surface"], linewidth=1.6, transform=squash, zorder=2))
         scene = _scene(d)
         if scene:
             seed = zlib.crc32(d.encode()) & 0xFFFFFFFF
-            _diorama(ax, scene, 0.0, 0.0, R, start, frac, circle, ax.transData,
-                     size=0.16, seed=seed, spacing=0.22)
-        mids.append(np.radians((start + end) / 2.0))
-        labels.append((d, frac))
-        start = end
+            _diorama(ax, scene, 0.0, 0.0, R, a0, frac, circle, ax.transData,
+                     size=0.15, seed=seed, spacing=0.22, y_scale=tilt)
+        mids.append((np.radians((a0 + a1) / 2.0), d, frac))
 
-    # Second pass: outside labels with leaders, spread evenly down each side.
-    right_items = [(m, d, f) for m, (d, f) in zip(mids, labels) if np.cos(m) >= 0]
-    left_items = [(m, d, f) for m, (d, f) in zip(mids, labels) if np.cos(m) < 0]
-    for items, right in ((right_items, True), (left_items, False)):
+    # 4) Outside labels with leaders, spread evenly down each side.
+    right = [it for it in mids if np.cos(it[0]) >= 0]
+    left = [it for it in mids if np.cos(it[0]) < 0]
+    for items, is_right in ((right, True), (left, False)):
         items = sorted(items, key=lambda it: np.sin(it[0]), reverse=True)
         n = len(items)
-        ys = np.linspace(1.2, -1.2, n) if n > 1 else [np.sin(items[0][0]) if items else 0.0]
-        lx = 1.34 if right else -1.34
+        ys = np.linspace(0.95, -0.95, n) if n > 1 else [np.sin(items[0][0]) * tilt if items else 0.0]
+        lx = 1.4 if is_right else -1.4
         for (mid, d, frac), ly in zip(items, ys):
-            ax.annotate(f"{d}  {frac * 100:.0f}%", xy=(0.92 * R * np.cos(mid), 0.92 * R * np.sin(mid)),
-                        xytext=(lx, ly), ha="left" if right else "right", va="center",
+            ax.annotate(f"{d}  {frac * 100:.0f}%",
+                        xy=(0.92 * R * np.cos(mid), 0.92 * R * np.sin(mid) * tilt),
+                        xytext=(lx, ly), ha="left" if is_right else "right", va="center",
                         fontsize=10.5, color=chrome["text"], fontweight="bold",
                         arrowprops=dict(arrowstyle="-", color=chrome["muted"], lw=0.8))
 
     ax.set_xlim(-2.9, 2.9)
-    ax.set_ylim(-1.5, 1.7)
+    ax.set_ylim(-1.15, 1.2)
     ax.set_aspect("equal")
     ax.axis("off")
     rng = f" ({year_range[0]}–{year_range[1]})" if year_range else ""
     scope = country if country else "Global"
     ax.set_title(f"{scope} primary-forest loss by driver{rng}",
-                 color=chrome["text"], fontweight="bold", fontsize=15, pad=16)
+                 color=chrome["text"], fontweight="bold", fontsize=15, pad=14)
     return ax
