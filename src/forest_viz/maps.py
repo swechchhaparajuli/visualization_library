@@ -485,14 +485,28 @@ def plot_driver_pie(drivers, country=None, year_range=None, ax=None, dark=False,
     def rim(a):  # base-plane rim point at angle a (degrees)
         return np.array([R * np.cos(np.radians(a)), R * np.sin(np.radians(a)) * tilt])
 
-    # Slice angles + a distinct extruded height per slice (taller = bigger share).
-    spans, start = [], 90.0
+    # Arrange slices as a "mountain": largest centered at the back, stepping
+    # down toward the front on both sides. This guarantees no taller slice
+    # sits in front of a shorter one, so the 3-D form never overlaps wrongly.
+    by_size = sorted(order, key=lambda d: totals[d], reverse=True)
+    arr = []
+    for i, d in enumerate(by_size):
+        (arr.append if i % 2 == 0 else (lambda v: arr.insert(0, v)))(d)
+
     fmax = max((totals[d] / total for d in order), default=1.0)
-    for d in order:
+    widths = {d: totals[d] / total * 360.0 for d in arr}
+    pos, cur = {}, 0.0
+    for d in arr:
+        pos[d] = (cur, cur - widths[d])  # clockwise
+        cur -= widths[d]
+    bc = sum(pos[by_size[0]]) / 2.0
+    delta = 90.0 - bc  # rotate so the biggest slice is centred at the back (top)
+
+    spans = []
+    for d in arr:
         frac = totals[d] / total
-        h = depth * (0.6 + 1.1 * frac / fmax)  # height varies by share
-        spans.append((d, frac, start, start - frac * 360.0, h))
-        start -= frac * 360.0
+        h = depth * (0.55 + 1.15 * frac / fmax)  # height varies by share
+        spans.append((d, frac, pos[d][0] + delta, pos[d][1] + delta, h))
 
     # Soft ground shadow under the disc.
     ax.add_patch(Ellipse((0.06, -0.06), 2 * R * 1.02, 2 * R * tilt * 1.02, facecolor="#1c1c1a",
