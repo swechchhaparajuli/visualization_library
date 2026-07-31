@@ -477,31 +477,31 @@ def plot_top_countries_map(
                  color=chrome["text"], fontweight="bold", fontsize=15)
 
     # Legend: a compact vertical key down the right side (clear of the map).
-    # Each driver's small color swatch (its identity color) carries the motif
-    # on top, with the name beside it; the whole key sits in a rounded,
-    # bordered panel (all drivers, primary or not).
+    # Each driver's small color swatch (its identity color) carries the motif,
+    # which sticks up a little past the chip, with the name beside it; the
+    # whole key floats on a soft-shadowed panel (all drivers, primary or not).
     lx = 226.0                          # chip center x
     chip_w, chip_h = 10.0, 7.0          # small: ~2x the label font height
     fs = 10.0
     n_rows = len(palette.DRIVER_ORDER)
-    row_step = 17.0
+    row_step = 13.0                     # rows packed close together
     cy0 = (ymax + ymin) / 2 + (n_rows - 1) / 2 * row_step   # top row, centered
 
-    pad_x, pad_y = 14.0, 13.0
+    pad_x, pad_y = 14.0, 14.0
     px0 = lx - chip_w / 2 - pad_x
     px1 = xmax - 6
     py1 = cy0 + chip_h / 2 + pad_y
     py0 = cy0 - (n_rows - 1) * row_step - chip_h / 2 - pad_y
 
-    # Soft drop shadow, then the panel itself.
+    # Soft drop shadow, then the (borderless) panel itself.
     ax.add_patch(FancyBboxPatch(
-        (px0 + 2.2, py0 - 2.6), px1 - px0, py1 - py0,
-        boxstyle="round,pad=0,rounding_size=7", facecolor=(0, 0, 0, 0.10),
+        (px0 + 2.6, py0 - 3.0), px1 - px0, py1 - py0,
+        boxstyle="round,pad=0,rounding_size=7", facecolor=(0, 0, 0, 0.11),
         edgecolor="none", zorder=5.7))
     ax.add_patch(FancyBboxPatch(
         (px0, py0), px1 - px0, py1 - py0,
         boxstyle="round,pad=0,rounding_size=7", facecolor=chrome["surface"],
-        edgecolor=chrome["baseline"], linewidth=1.4, zorder=5.8))
+        edgecolor="none", zorder=5.8))
 
     for i, d in enumerate(palette.DRIVER_ORDER):
         y = cy0 - i * row_step
@@ -509,10 +509,11 @@ def plot_top_countries_map(
         ax.add_patch(FancyBboxPatch(
             (lx - chip_w / 2, y - chip_h / 2), chip_w, chip_h,
             boxstyle="round,pad=0,rounding_size=2.2", facecolor=theme[d],
-            edgecolor=_darken(theme[d], 0.7), linewidth=0.9, zorder=6))
+            edgecolor="none", zorder=6))
         key = _LEGEND_MOTIF.get(d)
         if key:
-            _motifs.MOTIF[key](ax, lx, y - chip_h / 2 + 0.6, chip_h - 1.0,
+            # Motif grounded at the chip base, drawn taller so it pokes out.
+            _motifs.MOTIF[key](ax, lx, y - chip_h / 2 + 0.5, chip_h + 2.0,
                                ax.transData, 6.2)
         ax.text(lx + chip_w / 2 + 4, y, d, ha="left", va="center", fontsize=fs,
                 color=chrome["text_secondary"], zorder=6.3)
