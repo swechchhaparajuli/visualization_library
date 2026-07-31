@@ -231,3 +231,56 @@ def plot_driver_composition(drivers, country=None, year_range=None, ax=None, dar
     ax.margins(x=0.18)
     ax.tick_params(axis="y", length=0)
     return ax
+
+
+def _tint(hex_color, t=0.5):
+    """Lighten a hex color toward white by fraction ``t``."""
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    r, g, b = (int(v + (255 - v) * t) for v in (r, g, b))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def plot_driver_box(drivers, country=None, year_range=None, ax=None, dark=False):
+    """Box-and-whisker of each driver's annual loss distribution.
+
+    One horizontal box per driver summarizes the spread of its yearly
+    tree-cover loss (median, quartiles, whiskers, outliers) across years.
+    """
+    chrome = palette.chrome(dark=dark)
+    theme = palette.driver_theme(dark=dark)
+    ax = _new_ax(ax, (10, 6))
+
+    wide = _data.drivers_by_year(drivers, country=country)
+    if year_range is not None:
+        lo, hi = year_range
+        wide = wide.loc[(wide.index >= lo) & (wide.index <= hi)]
+    order = [d for d in palette.DRIVER_ORDER if d in wide.columns]
+    series = [wide[d].to_numpy() for d in order]
+    pos = list(range(len(order), 0, -1))  # first driver at the top
+
+    bp = ax.boxplot(
+        series, vert=False, positions=pos, widths=0.62, patch_artist=True,
+        medianprops=dict(color=chrome["text"], linewidth=1.7),
+        whiskerprops=dict(color=chrome["muted"], linewidth=1.2),
+        capprops=dict(color=chrome["muted"], linewidth=1.2),
+        flierprops=dict(marker="o", markersize=4, markeredgecolor="none", alpha=0.75),
+    )
+    for patch, flier, d in zip(bp["boxes"], bp["fliers"], order):
+        patch.set_facecolor(_tint(theme[d], 0.45))
+        patch.set_edgecolor(theme[d])
+        patch.set_linewidth(1.3)
+        flier.set_markerfacecolor(theme[d])
+
+    ax.set_yticks(pos)
+    ax.set_yticklabels(order)
+    ax.set_xlim(left=0)
+    ax.set_xlabel("Tree cover loss (ha/yr)")
+    ax.xaxis.set_major_formatter(FuncFormatter(_fmt_ha))
+    ax.grid(axis="x")
+    ax.grid(axis="y", visible=False)
+    ax.tick_params(axis="y", length=0)
+    rng = f" ({year_range[0]}–{year_range[1]})" if year_range else ""
+    scope = country if country else "Global"
+    ax.set_title(f"{scope} primary-forest loss by driver — annual distribution{rng}")
+    return ax

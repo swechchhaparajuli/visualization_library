@@ -70,7 +70,7 @@ plots.plot_loss_trend(tcl)                       # annual loss, global (or count
 plots.plot_top_countries(tcl, n=15)              # ranked bar
 plots.plot_top_countries_drivers(all_drivers)    # ranked bar split into driver % shares
 maps.plot_drivers_over_time_3d(drivers)          # layered 3-D bar graphs per driver
-maps.plot_driver_pie(drivers)                    # pie, each slice filled with driver motifs
+plots.plot_driver_box(drivers)                   # box-and-whisker of annual loss per driver
 ```
 
 Every plot function takes a tidy frame, draws on a matplotlib `Axes`
@@ -92,13 +92,13 @@ python examples/generate_figures.py data/raw/global.xlsx
 | `plot_top_countries_drivers` | For the top countries, what % of loss is which driver? | ranked bar, stacked by driver with % labels |
 | `plot_top_countries_map` | Where are the top countries, and their driver mix? | pop-out world map, each country filled by driver share |
 | `plot_drivers_over_time_3d` | How does the driver mix shift year to year? | isometric pictograph — columns of driver motifs (ha axis) |
-| `plot_driver_pie` | Which drivers dominate overall? | pie, slices filled with driver motifs |
+| `plot_driver_box` | How does each driver's annual loss vary? | horizontal box-and-whisker |
 
 ![Top countries pop-out map](reports/figures/top_countries_map.png)
 ![Tree cover loss trend](reports/figures/tree_cover_loss_trend.png)
 ![Top countries by loss, split by driver](reports/figures/top_countries_by_driver.png)
 ![Primary drivers over time](reports/figures/primary_drivers_over_time.png)
-![Primary driver pie](reports/figures/primary_driver_pie.png)
+![Primary driver box plot](reports/figures/primary_driver_box.png)
 ![Top countries by loss](reports/figures/top_countries_loss.png)
 
 ### Pop-out map

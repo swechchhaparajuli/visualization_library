@@ -173,9 +173,8 @@ def test_plot_functions_return_axes(tcl, drivers, dark):
     assert ax.get_xlabel() != ""
     ax2 = plots.plot_top_countries_drivers(drivers, n=1, dark=dark)
     assert ax2.get_legend() is not None  # driver legend present
-    ax3 = maps.plot_driver_pie(drivers, dark=dark)
-    texts = {t.get_text() for t in ax3.texts}
-    assert any("Permanent agriculture" in t for t in texts)  # slice labeled
+    ax_box = plots.plot_driver_box(drivers, dark=dark)
+    assert [lbl.get_text() for lbl in ax_box.get_yticklabels()]  # driver rows labeled
     ax4 = maps.plot_drivers_over_time_3d(drivers, dark=dark)
     assert any("Permanent agriculture" in t.get_text() for t in ax4.texts)
 
