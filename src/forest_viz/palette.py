@@ -44,7 +44,7 @@ def _darken(c, f):
 
 # User-supplied categorical palette (warm, muted). Assigned to drivers in
 # DRIVER_ORDER; this is the identity color used across every graph.
-_PALETTE = ["#a9a06c", "#474a29", "#bd6b45", "#c99c81", "#7397ac", "#47799a", "#aebdc2"]
+_PALETTE = ["#dab43f", "#474a29", "#bd6b45", "#c99c81", "#7397ac", "#47799a", "#aebdc2"]
 _NEUTRAL = "#c7c2b3"  # the spare greige swatch
 
 # Full-strength "theme" colors (primary driver / most charts).
