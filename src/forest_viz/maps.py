@@ -321,12 +321,13 @@ def plot_top_countries_map(
         geometry = load_country_geometry(geometry)
 
     if ax is None:
-        _, ax = plt.subplots(figsize=(16.5, 9))
+        _, ax = plt.subplots(figsize=(18.5, 9))
     fig = ax.figure
 
-    # View window with generous north/south whitespace; a surface-colored
-    # backdrop spans it so the margin survives a tight-bbox save.
-    xmin, xmax, ymin, ymax = -186, 200, -116, 120
+    # View window with generous whitespace (extra room on the right for a
+    # vertical legend); a surface-colored backdrop spans it so the margin
+    # survives a tight-bbox save.
+    xmin, xmax, ymin, ymax = -186, 292, -116, 120
     ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                            facecolor=chrome["surface"], edgecolor="none", zorder=0))
 
@@ -457,20 +458,22 @@ def plot_top_countries_map(
     ax.set_title(f"Top {n} countries by tree cover loss, split by driver{rng}",
                  color=chrome["text"], fontweight="bold", fontsize=15)
 
-    # Legend: each driver's color swatch with its motif on top, plus its name.
-    # The whole thing sits in a rounded, bordered panel in the bottom margin so
-    # it reads as one clearly bounded key (all drivers, primary or not).
-    cols = 4
-    col_x = np.linspace(-150, 74, cols)   # chip centers
-    row_y = (-86, -102)                    # chip centers (two rows)
-    chip_w, chip_h = 18.0, 14.0
+    # Legend: a compact vertical key down the right side (clear of the map).
+    # Each driver's small color swatch (its identity color) carries the motif
+    # on top, with the name beside it; the whole key sits in a rounded,
+    # bordered panel (all drivers, primary or not).
+    lx = 226.0                          # chip center x
+    chip_w, chip_h = 10.0, 7.0          # small: ~2x the label font height
+    fs = 10.0
+    n_rows = len(palette.DRIVER_ORDER)
+    row_step = 17.0
+    cy0 = (ymax + ymin) / 2 + (n_rows - 1) / 2 * row_step   # top row, centered
 
-    # Panel bounds: pad around the chip grid and the widest label.
-    pad_x, pad_top, pad_bot = 12.0, 12.0, 11.0
-    px0 = col_x[0] - chip_w / 2 - pad_x
-    px1 = xmax - 14                              # right margin inside the view
-    py1 = row_y[0] + chip_h / 2 + pad_top
-    py0 = row_y[1] - chip_h / 2 - pad_bot
+    pad_x, pad_y = 14.0, 13.0
+    px0 = lx - chip_w / 2 - pad_x
+    px1 = xmax - 6
+    py1 = cy0 + chip_h / 2 + pad_y
+    py0 = cy0 - (n_rows - 1) * row_step - chip_h / 2 - pad_y
 
     # Soft drop shadow, then the panel itself.
     ax.add_patch(FancyBboxPatch(
@@ -483,16 +486,17 @@ def plot_top_countries_map(
         edgecolor=chrome["baseline"], linewidth=1.4, zorder=5.8))
 
     for i, d in enumerate(palette.DRIVER_ORDER):
-        x, y = col_x[i % cols], row_y[i // cols]
-        # Color swatch (the driver's identity color) as a rounded chip.
+        y = cy0 - i * row_step
+        # Color swatch (the driver's identity color) as a small rounded chip.
         ax.add_patch(FancyBboxPatch(
-            (x - chip_w / 2, y - chip_h / 2), chip_w, chip_h,
-            boxstyle="round,pad=0,rounding_size=3.5", facecolor=theme[d],
-            edgecolor=_darken(theme[d], 0.7), linewidth=1.0, zorder=6))
+            (lx - chip_w / 2, y - chip_h / 2), chip_w, chip_h,
+            boxstyle="round,pad=0,rounding_size=2.2", facecolor=theme[d],
+            edgecolor=_darken(theme[d], 0.7), linewidth=0.9, zorder=6))
         key = _LEGEND_MOTIF.get(d)
         if key:
-            _motifs.MOTIF[key](ax, x, y - 5.0, 9.0, ax.transData, 6.2)
-        ax.text(x + chip_w / 2 + 4, y, d, ha="left", va="center", fontsize=10.5,
+            _motifs.MOTIF[key](ax, lx, y - chip_h / 2 + 0.6, chip_h - 1.0,
+                               ax.transData, 6.2)
+        ax.text(lx + chip_w / 2 + 4, y, d, ha="left", va="center", fontsize=fs,
                 color=chrome["text_secondary"], zorder=6.3)
     return ax
 
