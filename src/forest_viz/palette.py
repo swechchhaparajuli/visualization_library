@@ -23,15 +23,36 @@ DRIVER_ORDER = [
     "Settlements & Infrastructure",
 ]
 
-# Secondary (non-primary) drivers use a fixed pastel-green shade, consistent
-# across every country. Order matches DRIVER_ORDER.
-_SLOTS_LIGHT = ["#e3f3d8", "#c9e8bd", "#addca3", "#8fd08b", "#6fc276", "#4fb265", "#2f9f57"]
-_SLOTS_DARK = ["#b7d9a6", "#9ccb8a", "#7fbd75", "#61ad63", "#469a55", "#2f8547", "#1f6f39"]
+def _hex(c):
+    c = c.lstrip("#")
+    return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
 
-# Themed "biome" color used ONLY for a country's primary driver (behind its
-# icons), echoing the reference infographic's land-use palette.
-_THEME_LIGHT = ["#e4b23e", "#b3c94f", "#d9663a", "#3f8f6e", "#6f93a6", "#8a8f99", "#b5563f"]
-_THEME_DARK = ["#c9992f", "#97ad3f", "#bf5330", "#2f7d5e", "#5a7d8f", "#74797f", "#9c4634"]
+
+def _to_hex(rgb):
+    return "#{:02x}{:02x}{:02x}".format(*(max(0, min(255, int(v))) for v in rgb))
+
+
+def _lighten(c, t):
+    r, g, b = _hex(c)
+    return _to_hex((r + (255 - r) * t, g + (255 - g) * t, b + (255 - b) * t))
+
+
+def _darken(c, f):
+    r, g, b = _hex(c)
+    return _to_hex((r * f, g * f, b * f))
+
+
+# User-supplied categorical palette (warm, muted). Assigned to drivers in
+# DRIVER_ORDER; this is the identity color used across every graph.
+_PALETTE = ["#a9a06c", "#474a29", "#bd6b45", "#c99c81", "#7397ac", "#47799a", "#aebdc2"]
+_NEUTRAL = "#c7c2b3"  # the spare greige swatch
+
+# Full-strength "theme" colors (primary driver / most charts).
+_THEME_LIGHT = list(_PALETTE)
+_THEME_DARK = list(_PALETTE)
+# Muted (secondary) tints of the same palette, for the map's non-primary zones.
+_SLOTS_LIGHT = [_lighten(c, 0.55) for c in _PALETTE]
+_SLOTS_DARK = [_darken(c, 0.7) for c in _PALETTE]
 
 DRIVER_COLORS = dict(zip(DRIVER_ORDER, _SLOTS_LIGHT))
 DRIVER_COLORS_DARK = dict(zip(DRIVER_ORDER, _SLOTS_DARK))
@@ -39,9 +60,9 @@ DRIVER_COLORS_DARK = dict(zip(DRIVER_ORDER, _SLOTS_DARK))
 DRIVER_THEME = dict(zip(DRIVER_ORDER, _THEME_LIGHT))
 DRIVER_THEME_DARK = dict(zip(DRIVER_ORDER, _THEME_DARK))
 
-# Single-hue accent for one-series charts (blue slot 1).
-ACCENT = "#2a78d6"
-ACCENT_DARK = "#3987e5"
+# Single-hue accent for one-series charts (steel blue from the palette).
+ACCENT = "#47799a"
+ACCENT_DARK = _lighten("#47799a", 0.2)
 
 # Chart chrome / ink.
 LIGHT = {
