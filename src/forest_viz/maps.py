@@ -22,7 +22,7 @@ import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
-from matplotlib.patches import Ellipse, PathPatch, Polygon, Rectangle, Wedge
+from matplotlib.patches import Ellipse, FancyBboxPatch, PathPatch, Polygon, Rectangle, Wedge
 from matplotlib.path import Path
 
 from forest_viz import data as _data
@@ -457,18 +457,43 @@ def plot_top_countries_map(
     ax.set_title(f"Top {n} countries by tree cover loss, split by driver{rng}",
                  color=chrome["text"], fontweight="bold", fontsize=15)
 
-    # Legend: draw each driver's motif (all drivers, primary or not) with its
-    # name, in a grid along the bottom whitespace.
+    # Legend: each driver's color swatch with its motif on top, plus its name.
+    # The whole thing sits in a rounded, bordered panel in the bottom margin so
+    # it reads as one clearly bounded key (all drivers, primary or not).
     cols = 4
-    col_x = np.linspace(-158, 66, cols)
-    row_y = (-88, -102)
+    col_x = np.linspace(-150, 74, cols)   # chip centers
+    row_y = (-86, -102)                    # chip centers (two rows)
+    chip_w, chip_h = 18.0, 14.0
+
+    # Panel bounds: pad around the chip grid and the widest label.
+    pad_x, pad_top, pad_bot = 12.0, 12.0, 11.0
+    px0 = col_x[0] - chip_w / 2 - pad_x
+    px1 = xmax - 14                              # right margin inside the view
+    py1 = row_y[0] + chip_h / 2 + pad_top
+    py0 = row_y[1] - chip_h / 2 - pad_bot
+
+    # Soft drop shadow, then the panel itself.
+    ax.add_patch(FancyBboxPatch(
+        (px0 + 2.2, py0 - 2.6), px1 - px0, py1 - py0,
+        boxstyle="round,pad=0,rounding_size=7", facecolor=(0, 0, 0, 0.10),
+        edgecolor="none", zorder=5.7))
+    ax.add_patch(FancyBboxPatch(
+        (px0, py0), px1 - px0, py1 - py0,
+        boxstyle="round,pad=0,rounding_size=7", facecolor=chrome["surface"],
+        edgecolor=chrome["baseline"], linewidth=1.4, zorder=5.8))
+
     for i, d in enumerate(palette.DRIVER_ORDER):
         x, y = col_x[i % cols], row_y[i // cols]
+        # Color swatch (the driver's identity color) as a rounded chip.
+        ax.add_patch(FancyBboxPatch(
+            (x - chip_w / 2, y - chip_h / 2), chip_w, chip_h,
+            boxstyle="round,pad=0,rounding_size=3.5", facecolor=theme[d],
+            edgecolor=_darken(theme[d], 0.7), linewidth=1.0, zorder=6))
         key = _LEGEND_MOTIF.get(d)
         if key:
-            _motifs.MOTIF[key](ax, x, y - 4.5, 10.0, ax.transData, 7)
-        ax.text(x + 9, y, d, ha="left", va="center", fontsize=10.5,
-                color=chrome["text_secondary"], zorder=7)
+            _motifs.MOTIF[key](ax, x, y - 5.0, 9.0, ax.transData, 6.2)
+        ax.text(x + chip_w / 2 + 4, y, d, ha="left", va="center", fontsize=10.5,
+                color=chrome["text_secondary"], zorder=6.3)
     return ax
 
 
