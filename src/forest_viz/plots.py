@@ -17,6 +17,8 @@ Design notes
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import FancyBboxPatch
 from matplotlib.ticker import FuncFormatter
 
 from forest_viz import data as _data
@@ -242,45 +244,75 @@ def _tint(hex_color, t=0.5):
 
 
 def plot_driver_box(drivers, country=None, year_range=None, ax=None, dark=False):
-    """Box-and-whisker of each driver's annual loss distribution.
+    """Modern distribution chart: a soft box + jittered points per driver.
 
-    One horizontal box per driver summarizes the spread of its yearly
-    tree-cover loss (median, quartiles, whiskers, outliers) across years.
+    One horizontal row per driver shows the spread of its yearly tree-cover
+    loss — a rounded IQR box, a clear median, thin whiskers, and every year's
+    value as a faint dot (outliers ringed).
     """
     chrome = palette.chrome(dark=dark)
     theme = palette.driver_theme(dark=dark)
-    ax = _new_ax(ax, (10, 6))
+    ax = _new_ax(ax, (11, 6.5))
 
     wide = _data.drivers_by_year(drivers, country=country)
     if year_range is not None:
         lo, hi = year_range
         wide = wide.loc[(wide.index >= lo) & (wide.index <= hi)]
     order = [d for d in palette.DRIVER_ORDER if d in wide.columns]
-    series = [wide[d].to_numpy() for d in order]
-    pos = list(range(len(order), 0, -1))  # first driver at the top
+    n = len(order)
 
-    bp = ax.boxplot(
-        series, vert=False, positions=pos, widths=0.62, patch_artist=True,
-        medianprops=dict(color=chrome["text"], linewidth=1.7),
-        whiskerprops=dict(color=chrome["muted"], linewidth=1.2),
-        capprops=dict(color=chrome["muted"], linewidth=1.2),
-        flierprops=dict(marker="o", markersize=4, markeredgecolor="none", alpha=0.75),
-    )
-    for patch, flier, d in zip(bp["boxes"], bp["fliers"], order):
-        patch.set_facecolor(_tint(theme[d], 0.45))
-        patch.set_edgecolor(theme[d])
-        patch.set_linewidth(1.3)
-        flier.set_markerfacecolor(theme[d])
+    for i, d in enumerate(order):
+        y = n - i  # first driver on top
+        col = theme[d]
+        vals = np.sort(wide[d].to_numpy().astype(float))
+        q1, med, q3 = np.percentile(vals, [25, 50, 75])
+        iqr = q3 - q1
+        inl = vals[(vals >= q1 - 1.5 * iqr) & (vals <= q3 + 1.5 * iqr)]
+        wlo, whi = (inl.min(), inl.max()) if len(inl) else (vals.min(), vals.max())
+        out = vals[(vals < wlo) | (vals > whi)]
 
-    ax.set_yticks(pos)
-    ax.set_yticklabels(order)
-    ax.set_xlim(left=0)
-    ax.set_xlabel("Tree cover loss (ha/yr)")
+        # whisker
+        ax.plot([wlo, whi], [y, y], color=chrome["muted"], lw=1.4, zorder=2,
+                solid_capstyle="round")
+        for xw in (wlo, whi):
+            ax.plot([xw, xw], [y - 0.09, y + 0.09], color=chrome["muted"], lw=1.4, zorder=2)
+        # rounded IQR box (rounding in axes-fraction so it isn't stretched by x)
+        box = FancyBboxPatch(
+            (q1, y - 0.22), max(q3 - q1, 1e-9), 0.44,
+            boxstyle="round,pad=0,rounding_size=6", mutation_aspect=1e-6,
+            facecolor=_tint(col, 0.55), edgecolor=col, linewidth=1.4, zorder=3,
+            transform=ax.transData, mutation_scale=1)
+        ax.add_patch(box)
+        # median
+        ax.plot([med, med], [y - 0.22, y + 0.22], color=chrome["text"], lw=2.4,
+                zorder=5, solid_capstyle="round")
+        # jittered raw points
+        rng = np.random.RandomState(len(d))
+        jit = rng.uniform(-0.13, 0.13, size=len(vals))
+        inpts = vals[(vals >= wlo) & (vals <= whi)]
+        ax.scatter(inpts, np.full(len(inpts), y) + jit[: len(inpts)], s=22, color=col,
+                   alpha=0.45, edgecolor="none", zorder=4)
+        if len(out):
+            ax.scatter(out, np.full(len(out), y), s=34, facecolor="none", edgecolor=col,
+                       linewidth=1.5, zorder=6)
+
+    ax.set_yticks(range(1, n + 1))
+    ax.set_yticklabels(order[::-1], fontsize=11)
+    ax.set_ylim(0.4, n + 0.6)
+    ax.set_xlim(left=-max(wide.values.max() * 0.02, 1))
     ax.xaxis.set_major_formatter(FuncFormatter(_fmt_ha))
-    ax.grid(axis="x")
+    ax.grid(axis="x", color=chrome["grid"], linewidth=0.8)
     ax.grid(axis="y", visible=False)
-    ax.tick_params(axis="y", length=0)
-    rng = f" ({year_range[0]}–{year_range[1]})" if year_range else ""
+    ax.tick_params(axis="both", length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_axisbelow(True)
+
+    rng_txt = f"{year_range[0]}–{year_range[1]}" if year_range else "annual"
     scope = country if country else "Global"
-    ax.set_title(f"{scope} primary-forest loss by driver — annual distribution{rng}")
+    ax.set_title(f"{scope} primary-forest loss by driver", loc="left", fontsize=15,
+                 fontweight="bold", pad=26)
+    ax.text(0, 1.03, f"Distribution of yearly loss ({rng_txt}), ha per year",
+            transform=ax.transAxes, ha="left", va="bottom", fontsize=10.5,
+            color=chrome["text_secondary"])
     return ax
