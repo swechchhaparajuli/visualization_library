@@ -57,7 +57,11 @@ def main(workbook: str) -> None:
         print("skip map: missing", GEOJSON)
     for name, ax in figs.items():
         ax.figure.tight_layout()
-        ax.figure.savefig(FIG_DIR / name, dpi=130, bbox_inches="tight")
+        # The map is rendered at true country proportions, so it is saved at a
+        # higher dpi to keep the whole image large rather than enlarging the
+        # highlighted countries.
+        dpi = 175 if name == "top_countries_map.png" else 130
+        ax.figure.savefig(FIG_DIR / name, dpi=dpi, bbox_inches="tight")
         plt.close(ax.figure)
         print("wrote", FIG_DIR / name)
 

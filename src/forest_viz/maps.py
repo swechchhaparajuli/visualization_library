@@ -299,7 +299,7 @@ def plot_top_countries_map(
     year_range=None,
     ax=None,
     dark: bool = False,
-    enlarge: float = 1.35,
+    enlarge: float = 1.0,
     gap: float = 3.5,
     depth: float = 15.0,
     island_min_frac: float = 0.01,
@@ -309,9 +309,13 @@ def plot_top_countries_map(
 
     ``geometry`` is a path to a countries GeoJSON or the dict from
     :func:`load_country_geometry`. ``enlarge`` scales the highlighted
-    countries (capped for large ones); ``gap`` is the degrees of space kept
-    between bordering countries; ``depth`` is the extruded 3-D thickness in
-    points.
+    countries about their centroids (``1.0`` keeps them true to scale
+    against the base map; capped for large ones); ``gap`` is the degrees of
+    space kept between bordering countries; ``depth`` is the extruded 3-D
+    thickness in points. The countries are lifted off the base map with a
+    drop shadow and 3-D extrusion, so they still read as "pulled out" even
+    at true scale -- make the whole figure larger (higher dpi / figsize)
+    rather than enlarging the selected countries if they feel small.
     """
     chrome = palette.chrome(dark=dark)
     colors = palette.driver_colors(dark=dark)
@@ -364,6 +368,8 @@ def plot_top_countries_map(
     # the space down to the footprint on the map.
     top_t = _off(0, depth)
     n_layers = max(int(depth), 8)
+
+    placed_labels = []  # bounding boxes of labels already drawn (data coords)
 
     for country, rings in items:
         clip = _compound(rings)
@@ -425,27 +431,55 @@ def plot_top_countries_map(
                     t.set_path_effects([mpe.withStroke(linewidth=2.6, foreground=chrome["surface"])])
             start = end
 
-        # Country label above the country; if "above" would land on another
-        # country, place it beside instead.
+        # Country label: prefer above, else beside; pick the first candidate
+        # that clears both other countries and every label already placed (so
+        # true-scale countries packed close together don't collide).
         pts = np.vstack(rings)
         minx, maxx = pts[:, 0].min(), pts[:, 0].max()
-        maxy = pts[:, 1].max()
+        maxy, miny = pts[:, 1].max(), pts[:, 1].min()
         others = [r for c2, r in items if c2 != country]
         halfw = len(country) * 1.2  # ~half the label's width, in degrees
+        hh = 4.6                    # ~label height, in degrees
         ly_above = maxy + 2.8
         override = _LABEL_SIDE.get(country)
+
         if override == "left":
-            lx, ly, ha, va = minx - 2.5, cy, "right", "center"
+            cands = [(minx - 2.5, cy, "right", "center")]
         elif override == "right":
-            lx, ly, ha, va = maxx + 2.5, cy, "left", "center"
-        elif not _band_hits(others, cx - halfw, cx + halfw, ly_above):
-            lx, ly, ha, va = cx, ly_above, "center", "bottom"
-        elif not _band_hits(others, maxx + 2.5, maxx + 2.5 + 2 * halfw, cy):
-            lx, ly, ha, va = maxx + 2.5, cy, "left", "center"
-        elif not _band_hits(others, minx - 2.5 - 2 * halfw, minx - 2.5, cy):
-            lx, ly, ha, va = minx - 2.5, cy, "right", "center"
+            cands = [(maxx + 2.5, cy, "left", "center")]
         else:
-            lx, ly, ha, va = cx, ly_above, "center", "bottom"
+            cands = [
+                (cx, ly_above, "center", "bottom"),
+                (maxx + 2.5, cy, "left", "center"),
+                (minx - 2.5, cy, "right", "center"),
+                (cx, ly_above + 6.5, "center", "bottom"),
+                (cx, miny - 2.8 - hh, "center", "bottom"),
+            ]
+
+        def _bbox(lx, ly, ha, va):
+            if ha == "center":
+                x0, x1 = lx - halfw, lx + halfw
+            elif ha == "left":
+                x0, x1 = lx, lx + 2 * halfw
+            else:
+                x0, x1 = lx - 2 * halfw, lx
+            y0, y1 = (ly, ly + hh) if va == "bottom" else (ly - hh / 2, ly + hh / 2)
+            return x0, x1, y0, y1
+
+        def _clear(b):
+            if _band_hits(others, b[0], b[1], (b[2] + b[3]) / 2):
+                return False
+            for X0, X1, Y0, Y1 in placed_labels:
+                if b[0] < X1 and X0 < b[1] and b[2] < Y1 and Y0 < b[3]:
+                    return False
+            return True
+
+        lx, ly, ha, va = cands[0]
+        for c in cands:
+            if _clear(_bbox(*c)):
+                lx, ly, ha, va = c
+                break
+        placed_labels.append(_bbox(lx, ly, ha, va))
         lbl = ax.text(lx, ly, country, transform=top_t, ha=ha, va=va,
                       fontsize=11.5, color=chrome["text"], fontweight="bold", zorder=6)
         lbl.set_path_effects([mpe.withStroke(linewidth=3.4, foreground=chrome["surface"])])

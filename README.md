@@ -103,8 +103,10 @@ python examples/generate_figures.py data/raw/global.xlsx
 
 ### Pop-out map
 
-`plot_top_countries_map` enlarges the top-N countries and lifts them off a
-muted base map with a drop shadow (as if pulled out). Each country's own
+`plot_top_countries_map` lifts the top-N countries off a muted base map
+with a drop shadow and 3-D extrusion (as if pulled out), at their true
+geographic proportions relative to the rest of the map (`enlarge=1.0`;
+raise it to exaggerate the highlighted countries). Each country's own
 shape is sliced into pie wedges sized by each driver's share of that
 country's loss, extruded into a 3-D slab (shaded side wall + top face) so
 they read as solid, clearly distinguishable blocks. Bordering countries are
