@@ -450,6 +450,24 @@ def plot_top_countries_map(
                       fontsize=11.5, color=chrome["text"], fontweight="bold", zorder=6)
         lbl.set_path_effects([mpe.withStroke(linewidth=3.4, foreground=chrome["surface"])])
 
+        # Black leader line pointing from the label into the country: start a
+        # touch off the label, end where the label->centroid ray first enters
+        # the outline (so it lands on the country edge, not over the diorama).
+        d = np.array([cx - lx, cy - ly], float)
+        norm = float(np.hypot(*d)) or 1.0
+        u = d / norm
+        sx, sy = lx + u[0] * 1.6, ly + u[1] * 1.6
+        ex, ey = cx, cy
+        for k in range(1, 61):
+            tt = k / 60.0
+            cand = (lx + (cx - lx) * tt, ly + (cy - ly) * tt)
+            if _inside(rings, cand):
+                ex, ey = cand
+                break
+        leader = ax.plot([sx, ex], [sy, ey], transform=top_t, color=chrome["text"],
+                         linewidth=1.1, solid_capstyle="round", zorder=5.9)[0]
+        leader.set_path_effects([mpe.withStroke(linewidth=2.4, foreground=chrome["surface"])])
+
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_aspect("equal")
