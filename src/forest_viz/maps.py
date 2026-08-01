@@ -120,6 +120,34 @@ def _representative_point(rings: list) -> tuple[float, float]:
     return cx, cy
 
 
+def _interior_point(rings: list) -> tuple[float, float]:
+    """A guaranteed-inside point near the middle of the largest ring.
+
+    Approximates the "pole of inaccessibility" -- the interior point farthest
+    from the boundary -- by scoring a grid of candidates, so a label always
+    lands on the landmass even for concave or oddly shaped countries where a
+    plain centroid would fall in the sea.
+    """
+    ring = np.asarray(_largest_ring(rings), dtype=float)
+    path = Path(ring)
+    x0, y0 = ring[:, 0].min(), ring[:, 1].min()
+    x1, y1 = ring[:, 0].max(), ring[:, 1].max()
+    a, b = ring[:-1], ring[1:]
+    ab = b - a
+    ab_len2 = np.where((ab ** 2).sum(1) == 0, 1e-9, (ab ** 2).sum(1))
+    best, best_d = None, -1.0
+    for gx in np.linspace(x0, x1, 22)[1:-1]:
+        for gy in np.linspace(y0, y1, 22)[1:-1]:
+            if not path.contains_point((gx, gy)):
+                continue
+            p = np.array([gx, gy])
+            t = np.clip(((p - a) * ab).sum(1) / ab_len2, 0.0, 1.0)
+            d = np.hypot(*(a + t[:, None] * ab - p).T).min()
+            if d > best_d:
+                best_d, best = d, (float(gx), float(gy))
+    return best if best is not None else _representative_point(rings)
+
+
 def _drop_small_islands(rings: list, min_frac: float) -> list:
     """Drop outlying rings smaller than ``min_frac`` of the largest ring.
 
@@ -398,6 +426,7 @@ def plot_top_countries_map(
         # Top face: pie wedges clipped to the country outline. The primary
         # driver's sector is filled with a flat-motif diorama, not a flat color.
         icon_size = min(6.5, max(2.6, radius * 0.20)) * icon_scale
+        interior = None  # lazily-computed guaranteed-inside label fallback
         start = 90.0
         for drv in order:
             frac = fracs[drv]
@@ -416,19 +445,29 @@ def plot_top_countries_map(
                 seed = zlib.crc32(f"{country}:{drv}".encode()) & 0xFFFFFFFF
                 _diorama(ax, scene, cx, cy, radius, start, frac, rings, top_t, icon_size, seed)
             # Percentage label for the primary driver only, inside the country.
+            # Prefer a spot within the wedge; fall back to a guaranteed-inside
+            # interior point so every primary %% is always visible.
             if drv in primary:
                 mid = np.radians((start + end) / 2.0)
                 pt = None
-                for rr in (0.6, 0.72, 0.46, 0.82, 0.34):
+                for rr in (0.6, 0.72, 0.46, 0.82, 0.34, 0.22):
                     cand = (cx + radius * rr * np.cos(mid), cy + radius * rr * np.sin(mid))
                     if _inside(rings, cand):
                         pt = cand
                         break
-                if pt is not None:
-                    t = ax.text(pt[0], pt[1], f"{frac * 100:.0f}%", transform=top_t,
-                                ha="center", va="center", fontsize=10.5, zorder=6,
-                                color=chrome["text"], fontweight="bold")
-                    t.set_path_effects([mpe.withStroke(linewidth=2.6, foreground=chrome["surface"])])
+                if pt is None:
+                    if interior is None:
+                        interior = _interior_point(rings)
+                    pt = interior
+                    # Nudge toward the wedge so tied primaries don't stack.
+                    nud = (interior[0] + radius * 0.16 * np.cos(mid),
+                           interior[1] + radius * 0.16 * np.sin(mid))
+                    if _inside(rings, nud):
+                        pt = nud
+                t = ax.text(pt[0], pt[1], f"{frac * 100:.0f}%", transform=top_t,
+                            ha="center", va="center", fontsize=10.5, zorder=6,
+                            color=chrome["text"], fontweight="bold")
+                t.set_path_effects([mpe.withStroke(linewidth=2.6, foreground=chrome["surface"])])
             start = end
 
         # Country label: prefer above, else beside; pick the first candidate
